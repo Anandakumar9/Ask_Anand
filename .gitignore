@@ -62,6 +62,7 @@ coverage/
 tmp/
 temp/
 *.tmp
+tmpclaude-*/
 
 # User-specific files
 studypulse.db
