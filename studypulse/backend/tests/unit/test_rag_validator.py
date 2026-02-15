@@ -84,7 +84,7 @@ class TestOptionsValidation:
                 "D": "Six"
             },
             "correct_answer": "A",
-            "explanation": "2+2=4"
+            "explanation": "The answer is four because 2+2 equals 4."
         }
 
         is_valid, errors = validate_question(question)

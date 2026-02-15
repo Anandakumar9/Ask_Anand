@@ -396,6 +396,7 @@ class TestErrorRecovery:
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_422_UNPROCESSABLE_ENTITY
         ]
+        print("[OK] Invalid topic handled gracefully")
 
         # ── Test 2: Access non-existent test ──────────────────────
         print("\n[E2E ERROR] Test 2: Non-existent Test Access")
