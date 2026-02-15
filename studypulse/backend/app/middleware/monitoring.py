@@ -177,9 +177,9 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                 if user:
                     request.state.user_id = user.id
                     user_id_var.set(user.id)
-            except Exception:
+            except Exception as e:
                 # Token validation failed or user not found - continue without user context
-                pass
+                logger.debug(f"Token validation failed in monitoring middleware: {e}")
 
         response = await call_next(request)
         return response
