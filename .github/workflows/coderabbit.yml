@@ -15,7 +15,6 @@ jobs:
   coderabbit-review:
     runs-on: ubuntu-latest
     name: CodeRabbit AI Review
-    if: ${{ secrets.OPENAI_API_KEY != '' }}
 
     steps:
       - name: Checkout code
@@ -24,6 +23,7 @@ jobs:
           fetch-depth: 0
 
       - name: CodeRabbit Review
+        if: ${{ env.OPENAI_API_KEY != '' }}
         uses: coderabbitai/ai-pr-reviewer@latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -32,3 +32,10 @@ jobs:
           debug: false
           review_simple_changes: true
           review_comment_lgtm: false
+        continue-on-error: true
+
+      - name: Skip notice
+        if: ${{ env.OPENAI_API_KEY == '' }}
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: echo "CodeRabbit review skipped - OPENAI_API_KEY not configured"
