@@ -1,0 +1,77 @@
+# Railway.app Configuration for StudyPulse Backend
+# Auto-deploys from GitHub when changes are pushed to main/master branch
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 300 --keep-alive 5"
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+# Railway will automatically inject PORT, but we define it for clarity
+[[envVars]]
+name = "PORT"
+default = "8000"
+
+[[envVars]]
+name = "ENVIRONMENT"
+default = "production"
+
+# Required: Set these in Railway dashboard
+[[envVars]]
+name = "DATABASE_URL"
+description = "PostgreSQL connection URL from Supabase (format: postgresql+asyncpg://user:pass@host:5432/dbname)"
+
+[[envVars]]
+name = "SECRET_KEY"
+description = "Strong secret key minimum 32 characters (use: openssl rand -hex 32)"
+
+[[envVars]]
+name = "SUPABASE_URL"
+description = "Your Supabase project URL (https://xxxxx.supabase.co)"
+
+[[envVars]]
+name = "SUPABASE_KEY"
+description = "Supabase anon/public key"
+
+[[envVars]]
+name = "SUPABASE_JWT_SECRET"
+description = "Supabase JWT secret from project settings"
+
+[[envVars]]
+name = "CORS_ORIGINS"
+description = "Comma-separated allowed origins (e.g., https://yourdomain.vercel.app,https://app.yourdomain.com)"
+
+# Optional: Redis for caching (Railway addon)
+[[envVars]]
+name = "REDIS_URL"
+description = "Redis connection URL (use Railway Redis addon or external Redis)"
+
+# Optional: Ollama for AI generation
+[[envVars]]
+name = "OLLAMA_BASE_URL"
+description = "Ollama API URL if self-hosting (or leave empty to disable AI features)"
+default = ""
+
+[[envVars]]
+name = "OLLAMA_MODEL"
+description = "Ollama model name"
+default = "phi4-mini:3.8b-q4_K_M"
+
+# Performance tuning
+[[envVars]]
+name = "QUESTION_BATCH_SIZE"
+default = "3"
+
+[[envVars]]
+name = "PARALLEL_QUESTION_AGENTS"
+default = "2"
+
+# Debug mode (MUST be false in production)
+[[envVars]]
+name = "DEBUG"
+default = "False"

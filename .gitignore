@@ -68,3 +68,5 @@ tmpclaude-*/
 studypulse.db
 studypulse_20*.json
 errors_20*.json
+tmpclaude-*-cwd
+*.cwd

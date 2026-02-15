@@ -1,0 +1,42 @@
+{
+  "project": "StudyPulse",
+  "branchName": "feature/study-analytics",
+  "description": "Add comprehensive study analytics and progress tracking",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add analytics endpoint to backend",
+      "description": "As a backend developer, I need an API endpoint that returns user study statistics",
+      "acceptanceCriteria": [
+        "Add GET /api/v1/analytics/{user_id} endpoint in backend/app/api/analytics.py",
+        "Return total_study_time_minutes, total_tests_taken, average_score, best_score",
+        "Include topic_breakdown (list of {topic_name, study_time, tests_taken, avg_score})",
+        "Include last_30_days_activity (date, study_time, tests_taken)",
+        "Add analytics schema in backend/app/schemas/analytics.py",
+        "Tests pass (create test_analytics.py if needed)",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Create analytics screen in Flutter mobile app",
+      "description": "As a user, I want to see my study progress and test performance in a dashboard",
+      "acceptanceCriteria": [
+        "Create mobile/lib/screens/analytics_screen.dart",
+        "Display total study time as a card widget",
+        "Show test performance as a line chart (use fl_chart package)",
+        "Display topic breakdown as a list",
+        "Add navigation from home screen to analytics screen",
+        "Add analytics API method in mobile/lib/api/api_service.dart",
+        "Verify in Chrome browser (flutter run -d chrome)",
+        "UI matches Material Design 3 patterns"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

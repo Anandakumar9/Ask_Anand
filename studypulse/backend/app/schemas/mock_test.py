@@ -1,5 +1,5 @@
 """Pydantic schemas for mock test operations."""
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List, Dict
 from datetime import datetime
 
@@ -11,7 +11,7 @@ class QuestionDisplay(BaseModel):
     options: Dict[str, str]  # {"A": "...", "B": "...", "C": "...", "D": "..."}
     source: str  # "PREVIOUS" or "AI"
     difficulty: str
-    
+
     class Config:
         from_attributes = True
 
@@ -28,6 +28,15 @@ class StudySessionCreate(BaseModel):
     topic_id: int
     duration_mins: int
 
+    @field_validator('duration_mins')
+    @classmethod
+    def validate_duration(cls, v):
+        if v <= 0:
+            raise ValueError('duration_mins must be positive')
+        if v > 480:  # 8 hours max
+            raise ValueError('duration_mins cannot exceed 480 (8 hours)')
+        return v
+
 
 class StudySessionResponse(BaseModel):
     """Schema for study session response."""
@@ -39,7 +48,7 @@ class StudySessionResponse(BaseModel):
     started_at: datetime
     ended_at: Optional[datetime] = None
     completed: bool = False
-    
+
     class Config:
         from_attributes = True
 
@@ -50,7 +59,23 @@ class MockTestCreate(BaseModel):
     session_id: Optional[int] = None  # Optional link to study session
     question_count: int = 10  # Number of questions
     time_limit_seconds: int = 600  # 10 minutes default
-    previous_year_ratio: float = 0.5  # 50% previous year questions
+    previous_year_ratio: float = 0.3  # 30% DB (fallback), 70% AI (variety)
+
+    @field_validator('question_count')
+    @classmethod
+    def validate_question_count(cls, v):
+        if v <= 0:
+            raise ValueError('question_count must be positive')
+        if v > 100:
+            raise ValueError('question_count cannot exceed 100')
+        return v
+
+    @field_validator('time_limit_seconds')
+    @classmethod
+    def validate_time_limit(cls, v):
+        if v <= 0:
+            raise ValueError('time_limit_seconds must be positive')
+        return v
 
 
 class MockTestResponse(BaseModel):
@@ -60,7 +85,7 @@ class MockTestResponse(BaseModel):
     total_questions: int
     time_limit_seconds: int
     started_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -71,11 +96,25 @@ class AnswerItem(BaseModel):
     answer: Optional[str] = None  # "A", "B", "C", "D", or None
     time_spent_seconds: int = 0
 
+    @field_validator('time_spent_seconds')
+    @classmethod
+    def validate_time_spent(cls, v):
+        if v < 0:
+            raise ValueError('time_spent_seconds cannot be negative')
+        return v
+
 
 class SubmitAnswers(BaseModel):
     """Schema for submitting mock test answers."""
     responses: List[AnswerItem]
     total_time_seconds: int
+
+    @field_validator('total_time_seconds')
+    @classmethod
+    def validate_total_time(cls, v):
+        if v < 0:
+            raise ValueError('total_time_seconds cannot be negative')
+        return v
 
 
 class QuestionResult(BaseModel):
@@ -104,11 +143,11 @@ class TestResult(BaseModel):
     passed: bool  # Score >= 70%
     feedback_message: str
     questions: List[QuestionResult]  # Renamed from question_results for consistency
-    
+
     # Performance metrics
     accuracy: float
     speed_rating: str  # "fast", "good", "slow"
-    
+
     class Config:
         from_attributes = True
 
@@ -116,5 +155,12 @@ class TestResult(BaseModel):
 class RateQuestionRequest(BaseModel):
     """Schema for rating an AI-generated question."""
     question_id: int
-    rating: int  # 1-5
+    rating: int  # 1-10 scale
     feedback: Optional[str] = None
+
+    @field_validator('rating')
+    @classmethod
+    def validate_rating(cls, v):
+        if v < 1 or v > 10:
+            raise ValueError('rating must be between 1 and 10')
+        return v

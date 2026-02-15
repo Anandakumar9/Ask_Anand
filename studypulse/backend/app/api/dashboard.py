@@ -1,18 +1,33 @@
 """Dashboard API endpoints."""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc
+from sqlalchemy import select, func, desc, and_
 from datetime import datetime, timedelta
 from typing import List, Optional
 from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.api.auth import get_current_user
+from app.api.profile import calculate_study_streak  # Import optimized streak calculator
 from app.models.user import User
-from app.models.mock_test import MockTest, StudySession
+from app.models.mock_test import MockTest
+from app.models.mock_test import StudySession
 from app.models.exam import Topic, Subject, Exam
 
 router = APIRouter()
+
+
+def get_greeting() -> str:
+    """Get time-based greeting."""
+    hour = datetime.now().hour
+    if 5 <= hour < 12:
+        return "Good Morning"
+    elif 12 <= hour < 17:
+        return "Good Afternoon"
+    elif 17 <= hour < 22:
+        return "Good Evening"
+    else:
+        return "Good Night"
 
 
 class DashboardStats(BaseModel):
@@ -28,8 +43,10 @@ class DashboardStats(BaseModel):
 class RecentActivity(BaseModel):
     """Single activity item."""
     type: str  # "study" or "test"
-    title: str
+    topic_name: str
+    subject_name: str
     score: Optional[float] = None
+    percentage: Optional[float] = None
     star_earned: bool = False
     duration_mins: Optional[int] = None
     timestamp: datetime
@@ -37,7 +54,10 @@ class RecentActivity(BaseModel):
 
 class DashboardResponse(BaseModel):
     """Complete dashboard data."""
-    stats: DashboardStats
+    greeting: str
+    user_name: str
+    stats: dict
+    performance_goal: dict
     recent_activity: List[RecentActivity]
     continue_topic: Optional[dict] = None
 
@@ -47,105 +67,64 @@ async def get_dashboard(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get dashboard data for current user."""
+    """Get dashboard data for current user with greeting and stats."""
     user_id = current_user.id
     
-    # Get total stars
-    total_stars = current_user.total_stars
+    # Get greeting
+    greeting = get_greeting()
+    user_name = current_user.display_name or current_user.name.split()[0]
     
-    # Get average score
-    avg_query = select(func.avg(MockTest.score_percentage)).where(
-        MockTest.user_id == user_id,
-        MockTest.status == "completed"
-    )
-    avg_result = await db.execute(avg_query)
-    average_score = avg_result.scalar() or 0
+    # Get stats
+    total_sessions = (await db.execute(
+        select(func.count(StudySession.id)).where(StudySession.user_id == user_id)
+    )).scalar() or 0
     
-    # Get test counts
-    tests_query = select(func.count(MockTest.id)).where(
-        MockTest.user_id == user_id,
-        MockTest.status == "completed"
-    )
-    tests_result = await db.execute(tests_query)
-    tests_completed = tests_result.scalar() or 0
+    total_tests = (await db.execute(
+        select(func.count(MockTest.id)).where(
+            and_(MockTest.user_id == user_id, MockTest.status == "completed")
+        )
+    )).scalar() or 0
     
-    passed_query = select(func.count(MockTest.id)).where(
-        MockTest.user_id == user_id,
-        MockTest.status == "completed",
-        MockTest.score_percentage >= 70
-    )
-    passed_result = await db.execute(passed_query)
-    tests_passed = passed_result.scalar() or 0
-    
-    # Calculate study streak (consecutive days with activity)
+    # Calculate study streak
     streak = await calculate_study_streak(user_id, db)
     
-    # Get total study hours
-    hours_query = select(func.sum(StudySession.actual_duration_mins)).where(
-        StudySession.user_id == user_id,
-        StudySession.completed == True
-    )
-    hours_result = await db.execute(hours_query)
-    total_mins = hours_result.scalar() or 0
-    total_study_hours = round(total_mins / 60, 1)
+    stats = {
+        "sessions": total_sessions,
+        "tests": total_tests,
+        "stars": current_user.total_stars,
+        "study_streak": streak,
+    }
     
-    stats = DashboardStats(
-        total_stars=total_stars,
-        average_score=round(average_score, 1),
-        study_streak=streak,
-        total_study_hours=total_study_hours,
-        tests_completed=tests_completed,
-        tests_passed=tests_passed
-    )
+    # Performance goal (fixed at 100%)
+    avg_score = (await db.execute(
+        select(func.avg(MockTest.score_percentage)).where(
+            and_(MockTest.user_id == user_id, MockTest.status == "completed")
+        )
+    )).scalar() or 0.0
     
-    # Get recent activity
+    performance_goal = {
+        "target": 100.0,
+        "current": round(avg_score, 1),
+        "percentage": int((avg_score / 100.0) * 100) if avg_score else 0,
+    }
+    
+    # Get recent activity (last 3 tests with topic, percentage, star)
     recent_activity = await get_recent_activity(user_id, db)
     
-    # Get continue topic (last incomplete or most recent)
+    # Get continue topic
     continue_topic = await get_continue_topic(user_id, db)
     
     return DashboardResponse(
+        greeting=greeting,
+        user_name=user_name,
         stats=stats,
+        performance_goal=performance_goal,
         recent_activity=recent_activity,
         continue_topic=continue_topic
     )
 
 
-async def calculate_study_streak(user_id: int, db: AsyncSession) -> int:
-    """Calculate consecutive days with study activity."""
-    today = datetime.utcnow().date()
-    streak = 0
-    current_date = today
-    
-    for _ in range(365):  # Check up to a year back
-        # Check if there's any activity on this date
-        start = datetime.combine(current_date, datetime.min.time())
-        end = datetime.combine(current_date, datetime.max.time())
-        
-        study_query = select(func.count(StudySession.id)).where(
-            StudySession.user_id == user_id,
-            StudySession.started_at >= start,
-            StudySession.started_at <= end
-        )
-        
-        test_query = select(func.count(MockTest.id)).where(
-            MockTest.user_id == user_id,
-            MockTest.started_at >= start,
-            MockTest.started_at <= end
-        )
-        
-        study_result = await db.execute(study_query)
-        test_result = await db.execute(test_query)
-        
-        has_activity = (study_result.scalar() or 0) > 0 or (test_result.scalar() or 0) > 0
-        
-        if has_activity:
-            streak += 1
-            current_date -= timedelta(days=1)
-        else:
-            break
-    
-    return streak
+# calculate_study_streak is now imported from profile.py (optimized version)
 
 
 async def get_recent_activity(user_id: int, db: AsyncSession, limit: int = 10) -> List[RecentActivity]:

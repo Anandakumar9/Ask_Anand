@@ -23,11 +23,63 @@ httpx>=0.26.0
 qdrant-client>=1.12.0
 fastembed>=0.4.0
 
-# Cache (Redis async)
-redis[hiredis]>=5.0.1
+# Lightweight Vector Search (PageIndex - hnswlib-based, alternative to Qdrant)
+hnswlib>=0.8.0
+numpy>=1.24.0
+
+# Cache (Redis async - OPTIONAL for local dev, uses in-memory fallback)
+redis>=5.0.1
 
 # Logging
 python-json-logger>=2.0.7
 
 # Environment
 python-dotenv>=1.0.0
+
+# PDF Processing
+pypdf2>=3.0.0
+pdfplumber>=0.11.0
+reportlab>=4.0.0
+
+# Web Scraping
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+selenium>=4.15.0
+playwright>=1.40.0
+
+# ── Testing Dependencies ──
+# Testing Framework
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+pytest-xdist>=3.3.0  # Parallel test execution
+pytest-timeout>=2.1.0
+pytest-mock>=3.11.0
+
+# Test Coverage
+coverage[toml]>=7.3.0
+
+# HTTP Testing
+httpx>=0.26.0  # Already in main deps
+
+# Load Testing
+locust>=2.15.0  # Optional: for advanced load testing
+
+# Code Quality (Dev Dependencies)
+black>=23.7.0
+flake8>=6.1.0
+mypy>=1.5.0
+pylint>=2.17.0
+bandit>=1.7.5
+safety>=2.3.0
+isort>=5.12.0
+
+# Type Stubs for MyPy
+types-redis>=4.6.0
+types-passlib>=1.7.7
+
+# Test Data Generation
+faker>=19.0.0  # For generating test data
+
+# Database Testing
+pytest-postgresql>=5.0.0  # Optional: for PostgreSQL testing

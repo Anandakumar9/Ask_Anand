@@ -53,6 +53,14 @@ async def start_mock_test(
     if not topic:
         raise HTTPException(status_code=404, detail="Topic not found")
 
+    # Check if topic has any questions first
+    existing_count = (
+        await db.execute(
+            select(Question).where(Question.topic_id == test_data.topic_id)
+        )
+    ).scalars().all()
+    existing_question_count = len(existing_count)
+
     # Generate via orchestrator (cache-first, then DB+AI)
     result = await orchestrator.generate_test(
         topic_id=test_data.topic_id,
@@ -64,10 +72,21 @@ async def start_mock_test(
 
     questions = result["questions"]
     if not questions:
-        raise HTTPException(
-            status_code=503,
-            detail="Could not generate questions. Is Ollama running?",
-        )
+        # Provide detailed error message based on the situation
+        if existing_question_count == 0:
+            # No questions in DB for this topic or similar topics
+            raise HTTPException(
+                status_code=404,
+                detail=f"No questions available for topic '{topic.name}' or similar topics. "
+                       f"Please try a different topic or add questions to the database.",
+            )
+        else:
+            # Questions exist but couldn't generate test (unusual case)
+            raise HTTPException(
+                status_code=503,
+                detail=f"Question generation failed despite {existing_question_count} questions available. "
+                       f"Check system logs for details.",
+            )
 
     # Persist test record
     qids = [q["id"] for q in questions]
@@ -334,9 +353,9 @@ async def rate_question(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Rate an AI-generated question's quality (1-5)."""
-    if not 1 <= data.rating <= 5:
-        raise HTTPException(status_code=400, detail="Rating must be 1-5")
+    """Rate an AI-generated question's quality (1-10 scale)."""
+    if not 1 <= data.rating <= 10:
+        raise HTTPException(status_code=400, detail="Rating must be 1-10")
 
     q = (
         await db.execute(select(Question).where(Question.id == data.question_id))
@@ -359,7 +378,12 @@ async def rate_question(
     q.avg_rating = total_rating / q.rating_count
 
     await db.commit()
-    return {"status": "rated", "question_id": data.question_id, "rating": data.rating}
+    return {
+        "status": "success",
+        "message": "✅ Thank you for your feedback!",
+        "question_id": data.question_id,
+        "rating": data.rating
+    }
 
 
 # ── Test history ──────────────────────────────────────────────

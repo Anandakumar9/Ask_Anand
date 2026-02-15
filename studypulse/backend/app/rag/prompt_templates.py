@@ -1,10 +1,12 @@
 """Exam-specific prompt templates for question generation.
 
-Each competitive exam has unique question patterns, cognitive requirements,
-and formatting conventions. This module provides structured prompts that
-guide the LLM to generate exam-authentic MCQ questions.
+Designed for batched generation with small models (phi4-mini):
+  - Short, focused prompts that fit in context window
+  - Separate system prompt (cached by Ollama) from batch prompt
+  - Dedup instructions reference already-generated questions
+  - Enhanced quality criteria for institutional standards
 
-Bloom's Taxonomy levels are used to control cognitive complexity:
+Bloom's Taxonomy levels control cognitive complexity:
   Remember → Understand → Apply → Analyze → Evaluate → Create
 """
 
@@ -12,124 +14,164 @@ Bloom's Taxonomy levels are used to control cognitive complexity:
 
 EXAM_PROFILES: dict[str, dict] = {
     "UPSC Civil Services": {
-        "style": "analytical and conceptual",
-        "question_types": [
-            "statement-based",
-            "assertion-reason",
-            "match-the-following",
-            "factual",
-        ],
-        "cognitive_focus": ["Analyze", "Evaluate", "Apply"],
-        "difficulty_distribution": {"easy": 0.2, "medium": 0.5, "hard": 0.3},
-        "instructions": (
-            "- Use 'Consider the following statements...' format\n"
-            "- Include 'Which of the above is/are correct?' patterns\n"
-            "- Test conceptual understanding, not mere recall\n"
-            "- Distractors should reflect common governance/history misconceptions"
-        ),
+        "style": "analytical, statement-based, multi-dimensional",
+        "focus": "conceptual understanding, governance, policy, current affairs integration",
+        "standards": "NCERT-based, analytical depth, multiple correct interpretations avoided",
+        "difficulty_mix": "30% easy, 50% medium, 20% hard",
     },
-    "SSC CGL": {
-        "style": "factual and speed-oriented",
-        "question_types": ["direct-factual", "calculation", "analogy", "pattern"],
-        "cognitive_focus": ["Remember", "Understand", "Apply"],
-        "difficulty_distribution": {"easy": 0.4, "medium": 0.4, "hard": 0.2},
-        "instructions": (
-            "- Questions answerable in 30-60 seconds\n"
-            "- Focus on factual recall and basic application\n"
-            "- Clear, unambiguous language"
-        ),
-    },
-    "JEE Main": {
-        "style": "problem-solving and numerical",
-        "question_types": ["conceptual-MCQ", "numerical", "multi-step"],
-        "cognitive_focus": ["Apply", "Analyze", "Evaluate"],
-        "difficulty_distribution": {"easy": 0.2, "medium": 0.5, "hard": 0.3},
-        "instructions": (
-            "- Multi-step calculation problems\n"
-            "- Test deep understanding of Physics / Chemistry / Mathematics\n"
-            "- Distractors should be values from common calculation errors"
-        ),
+    "NEET PG": {
+        "style": "clinical vignettes, case-based, diagnostic reasoning",
+        "focus": "recent medical advances, clinical application, evidence-based practice",
+        "standards": "Harrison's/Bailey's aligned, DNB guidelines, AIIMS pattern",
+        "difficulty_mix": "20% easy, 50% medium, 30% hard",
     },
     "NEET UG": {
-        "style": "biology-focused with clinical application",
-        "question_types": ["assertion-reason", "diagram-based", "factual", "application"],
-        "cognitive_focus": ["Remember", "Understand", "Apply"],
-        "difficulty_distribution": {"easy": 0.3, "medium": 0.5, "hard": 0.2},
-        "instructions": (
-            "- NCERT-aligned Biology content\n"
-            "- Include assertion-reason type questions\n"
-            "- Test application of biological concepts\n"
-            "- Chemistry: focus on organic reactions and mechanisms"
-        ),
+        "style": "biology-focused, NCERT-aligned, assertion-reason",
+        "focus": "NCERT strict alignment, conceptual clarity, clinical correlation",
+        "standards": "NCERT Class 11-12, no ambiguity, single correct answer",
+        "difficulty_mix": "40% easy, 40% medium, 20% hard",
+    },
+    "SSC CGL": {
+        "style": "factual, speed-oriented, direct questions",
+        "focus": "recall, basic application, 30-60 sec per question, static GK",
+        "standards": "previous year pattern, factual accuracy, no tricks",
+        "difficulty_mix": "50% easy, 40% medium, 10% hard",
+    },
+    "JEE Main": {
+        "style": "problem-solving, numerical, multi-step calculations",
+        "focus": "deep concept application, physics/chemistry/math integration",
+        "standards": "JEE Main syllabus, NTA guidelines, numerical accuracy critical",
+        "difficulty_mix": "25% easy, 50% medium, 25% hard",
     },
     "IBPS PO": {
-        "style": "banking and quantitative reasoning",
-        "question_types": ["data-interpretation", "reasoning", "calculation", "verbal"],
-        "cognitive_focus": ["Apply", "Analyze", "Remember"],
-        "difficulty_distribution": {"easy": 0.3, "medium": 0.5, "hard": 0.2},
-        "instructions": (
-            "- Banking/finance context where relevant\n"
-            "- Percentages, ratios, profit/loss for quantitative\n"
-            "- Logical deduction for reasoning\n"
-            "- Grammar, vocabulary, comprehension for English"
-        ),
+        "style": "banking/finance context, data interpretation, logical reasoning",
+        "focus": "quantitative aptitude, banking awareness, current economic trends",
+        "standards": "IBPS official pattern, RBI guidelines awareness",
+        "difficulty_mix": "40% easy, 45% medium, 15% hard",
     },
     "CAT": {
-        "style": "logical reasoning and verbal ability",
-        "question_types": ["RC-passage", "logical-puzzle", "data-sufficiency", "para-jumble"],
-        "cognitive_focus": ["Analyze", "Evaluate", "Apply"],
-        "difficulty_distribution": {"easy": 0.1, "medium": 0.5, "hard": 0.4},
-        "instructions": (
-            "- Requires critical thinking\n"
-            "- LRDI: complex data sets\n"
-            "- Verbal: inference-based, not just comprehension\n"
-            "- Quant: tricky, not just calculation-heavy"
-        ),
+        "style": "logical reasoning, critical thinking, inference-based",
+        "focus": "data sufficiency, verbal ability, lateral thinking",
+        "standards": "IIM pattern, no calculation tricks, reasoning clarity",
+        "difficulty_mix": "20% easy, 50% medium, 30% hard",
     },
     "CBSE Class 12": {
-        "style": "NCERT-aligned board exam pattern",
-        "question_types": ["short-answer-MCQ", "application-based", "case-study"],
-        "cognitive_focus": ["Remember", "Understand", "Apply"],
-        "difficulty_distribution": {"easy": 0.4, "medium": 0.4, "hard": 0.2},
-        "instructions": (
-            "- Strictly follow NCERT syllabus and textbook content\n"
-            "- Include case-study based questions (new CBSE pattern)\n"
-            "- Exam-board appropriate difficulty"
-        ),
+        "style": "NCERT-aligned board pattern, case-study integration",
+        "focus": "fundamentals, application-based, board marking scheme",
+        "standards": "NCERT strict, CBSE board pattern, competency-based",
+        "difficulty_mix": "50% easy, 35% medium, 15% hard",
     },
     "CBSE Class 10": {
-        "style": "foundation-level board exam pattern",
-        "question_types": ["direct-MCQ", "application-based", "assertion-reason"],
-        "cognitive_focus": ["Remember", "Understand"],
-        "difficulty_distribution": {"easy": 0.5, "medium": 0.4, "hard": 0.1},
-        "instructions": (
-            "- Simple, clear language for Class 10 students\n"
-            "- Follow NCERT content strictly\n"
-            "- Focus on fundamental concepts"
-        ),
+        "style": "foundation-level, clear language, simple application",
+        "focus": "fundamental concepts, direct application, no tricks",
+        "standards": "NCERT Class 10, age-appropriate, single interpretation",
+        "difficulty_mix": "60% easy, 30% medium, 10% hard",
+    },
+    "GATE": {
+        "style": "engineering fundamentals, numerical problem-solving",
+        "focus": "core concepts, multi-step reasoning, engineering application",
+        "standards": "GATE syllabus, IIT/IISc standards, precise numerical answers",
+        "difficulty_mix": "25% easy, 50% medium, 25% hard",
     },
 }
 
 _DEFAULT_PROFILE: dict = {
-    "style": "standard competitive exam",
-    "question_types": ["MCQ", "factual", "application"],
-    "cognitive_focus": ["Remember", "Understand", "Apply"],
-    "difficulty_distribution": {"easy": 0.3, "medium": 0.5, "hard": 0.2},
-    "instructions": "- Clear, well-structured MCQ questions\n- Plausible distractors",
+    "style": "standard competitive exam format",
+    "focus": "conceptual clarity, practical application",
+    "standards": "clear question, unambiguous options, single correct answer",
+    "difficulty_mix": "40% easy, 40% medium, 20% hard",
 }
 
 
-# ── Helpers ───────────────────────────────────────────────────
-
-
-def get_exam_profile(exam_name: str) -> dict:
-    """Get exam profile; falls back to default if unknown exam."""
+def _get_profile(exam_name: str) -> dict:
+    """Get exam profile; falls back to default."""
     if exam_name in EXAM_PROFILES:
         return EXAM_PROFILES[exam_name]
     for key, profile in EXAM_PROFILES.items():
         if exam_name.lower() in key.lower() or key.lower() in exam_name.lower():
             return profile
     return _DEFAULT_PROFILE
+
+
+# ── Prompt builders ───────────────────────────────────────────
+
+
+def get_system_prompt(exam_name: str, subject_name: str) -> str:
+    """System prompt — cached by Ollama across batches.
+
+    Enhanced with institutional quality standards.
+    """
+    p = _get_profile(exam_name)
+    return (
+        f"You are an expert {exam_name} question paper setter "
+        f"specializing in {subject_name}.\n\n"
+        f"EXAM PROFILE:\n"
+        f"- Style: {p['style']}\n"
+        f"- Focus: {p['focus']}\n"
+        f"- Standards: {p['standards']}\n"
+        f"- Difficulty Mix: {p['difficulty_mix']}\n\n"
+        f"QUALITY REQUIREMENTS:\n"
+        f"1. Each question must be UNAMBIGUOUS with EXACTLY ONE correct answer\n"
+        f"2. Options must be DISTINCT and PLAUSIBLE (no obvious wrong answers)\n"
+        f"3. Explanations must be CLEAR, CONCISE, and EDUCATIONAL\n"
+        f"4. Language must be PROFESSIONAL and ERROR-FREE\n"
+        f"5. Follow institutional standards strictly (NCERT/Harrison's/etc.)\n\n"
+        f"OUTPUT FORMAT:\n"
+        f"Always respond with ONLY a valid JSON array of question objects.\n"
+        f"No explanation, no markdown, no text outside the JSON."
+    )
+
+
+def get_batch_prompt(
+    exam_name: str,
+    subject_name: str,
+    topic_name: str,
+    count: int,
+    already_generated: list[str] | None = None,
+    context_questions: list[dict] | None = None,
+) -> str:
+    """Build a concise batch prompt for N questions.
+
+    Kept short to avoid overwhelming small models.
+    Enhanced with quality checks.
+    """
+    # Dedup block
+    dedup = ""
+    if already_generated:
+        dedup = "\n⚠️  DO NOT repeat these already-generated questions:\n"
+        for q in already_generated[:10]:  # Show max 10 to preserve context
+            dedup += f"  - {q[:100]}...\n"
+
+    # Reference questions (style guide)
+    ctx = ""
+    if context_questions:
+        ctx = "\n📚 Match this question style:\n"
+        for q in context_questions[:2]:
+            ctx += f"  Example: {q.get('question_text', '')[:100]}...\n"
+
+    return (
+        f"Generate exactly {count} high-quality MCQ questions for {exam_name}.\n\n"
+        f"📋 TOPIC: {subject_name} > {topic_name}\n"
+        f"{ctx}{dedup}\n"
+        f"✅ REQUIREMENTS:\n"
+        f"- Each question covers a DIFFERENT concept within {topic_name}\n"
+        f"- Mix difficulties appropriately (refer to exam profile)\n"
+        f"- All 4 options must be plausible but only ONE correct\n"
+        f"- Explanation must teach WHY the answer is correct\n"
+        f"- Use precise, professional language\n"
+        f"- Follow institutional standards strictly\n\n"
+        f"📝 JSON FORMAT (return ONLY this):\n"
+        f'[{{\n'
+        f'  "question_text": "Clear, unambiguous question here",\n'
+        f'  "options": {{"A": "option1", "B": "option2", "C": "option3", "D": "option4"}},\n'
+        f'  "correct_answer": "B",\n'
+        f'  "explanation": "Why B is correct and others are wrong",\n'
+        f'  "difficulty": "medium"\n'
+        f'}}]'
+    )
+
+
+# ── Legacy compat (used by old code paths) ───────────────────
 
 
 def get_exam_prompt(
@@ -140,87 +182,14 @@ def get_exam_prompt(
     context_questions: list[dict] | None = None,
     excluded_summaries: list[str] | None = None,
 ) -> tuple[str, str]:
-    """Build (system_prompt, user_prompt) for question generation.
-
-    Includes exam-specific style, cognitive levels, difficulty distribution,
-    reference questions for style matching, and an exclusion list for dedup.
-    """
-    p = get_exam_profile(exam_name)
-
-    # ── System prompt ─────────────────────────────────────────
-    system = (
-        f"You are an expert {exam_name} question paper setter.\n"
-        f"You create high-quality MCQ questions that match the exact pattern, "
-        f"difficulty, and style of real {exam_name} exams.\n"
-        f"You have deep domain knowledge of {subject_name}.\n"
-        f"Respond with ONLY a valid JSON array. No extra text."
+    """Legacy compatibility wrapper. Returns (system, user) tuple."""
+    system = get_system_prompt(exam_name, subject_name)
+    user = get_batch_prompt(
+        exam_name=exam_name,
+        subject_name=subject_name,
+        topic_name=topic_name,
+        count=question_count,
+        already_generated=excluded_summaries,
+        context_questions=context_questions,
     )
-
-    # ── Context block (reference questions) ───────────────────
-    ctx = ""
-    if context_questions:
-        examples = []
-        for i, q in enumerate(context_questions[:5], 1):
-            opts = q.get("options", {})
-            ostr = (
-                "\n".join(f"  {k}) {v}" for k, v in opts.items())
-                if isinstance(opts, dict)
-                else str(opts)
-            )
-            examples.append(
-                f"Example {i}: {q.get('question_text', '')}\n{ostr}\n"
-                f"  Answer: {q.get('correct_answer', '')}"
-            )
-        ctx = "\n\nREFERENCE QUESTIONS (match this style):\n" + "\n\n".join(examples)
-
-    # ── Exclusion block ───────────────────────────────────────
-    excl = ""
-    if excluded_summaries:
-        excl = (
-            "\n\nDO NOT REPEAT these questions:\n"
-            + "\n".join(f"- {s}" for s in excluded_summaries[:20])
-        )
-
-    # ── Difficulty counts ─────────────────────────────────────
-    dist = p["difficulty_distribution"]
-    easy_n = max(1, round(question_count * dist["easy"]))
-    hard_n = max(1, round(question_count * dist["hard"]))
-    med_n = question_count - easy_n - hard_n
-
-    # ── User prompt ───────────────────────────────────────────
-    user = f"""Generate exactly {question_count} unique MCQ questions for:
-- Exam: {exam_name}
-- Subject: {subject_name}
-- Topic: {topic_name}
-
-STYLE: {p['style']}
-QUESTION TYPES: {', '.join(p['question_types'])}
-COGNITIVE LEVELS: {', '.join(p['cognitive_focus'])}
-
-DIFFICULTY MIX: {easy_n} easy, {med_n} medium, {hard_n} hard
-
-EXAM RULES:
-{p['instructions']}{ctx}{excl}
-
-Return ONLY this JSON array (no markdown, no explanation):
-[
-  {{
-    "question_text": "Full question text",
-    "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}},
-    "correct_answer": "A",
-    "explanation": "Why this answer is correct",
-    "difficulty": "easy|medium|hard",
-    "bloom_level": "remember|understand|apply|analyze|evaluate"
-  }}
-]
-
-RULES:
-1. ONLY output the JSON array
-2. Exactly 4 options per question (A, B, C, D)
-3. Exactly 1 correct answer
-4. Plausible distractors (common misconceptions)
-5. Clear educational explanation for each
-6. Factually accurate
-7. Vary correct-answer position"""
-
     return system, user

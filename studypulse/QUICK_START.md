@@ -1,130 +1,109 @@
-# StudyPulse - Quick Start Guide
+# 🚀 StudyPulse - Quick Start Guide
 
-## 🚀 One-Click Startup
+## 🎯 Launch Both Backend and Mobile App
 
-**Just double-click: `START.bat`**
-
-That's it! The script will:
-1. Start the backend API (FastAPI + Supabase + Ollama)
-2. Launch the mobile app in your Chrome browser
-3. Optionally start RAG Pipeline (if Docker is running)
-
----
-
-## 📋 What You Need
-
-### Essential (Already Installed)
-- ✅ Python 3.13
-- ✅ Flutter SDK
-- ✅ Supabase account
-- ✅ Ollama with Phi4 model
-
-### Optional (for Advanced Features)
-- Docker Desktop (for RAG Pipeline with Qdrant vector database)
-
----
-
-## 🎯 Quick Access
-
-Once started, access:
-
-- **Backend API Docs**: http://localhost:8000/docs
-- **Mobile App**: Opens automatically in Chrome (or http://localhost:8080)
-- **Health Check**: http://localhost:8000/health
-
----
-
-## 🔧 Manual Setup (If Needed)
-
-### 1. Backend Only
+### Easiest Way: Use the Launcher Script
 ```powershell
-cd studypulse\backend
-uvicorn app.main:app --reload --port 8000
+cd c:\Users\anand\OneDrive\Desktop\Ask_Anand\studypulse
+.\LAUNCH_ALL.ps1
 ```
 
-### 2. Mobile App Only (Web)
+This will open two new PowerShell windows:
+- **Backend Server** - http://localhost:8001
+- **Mobile App** - http://localhost:8082
+
+---
+
+## 🔧 Manual Launch (Alternative)
+
+### Backend Only
 ```powershell
-cd studypulse\mobile
-flutter run -d chrome --web-port=8080
+cd c:\Users\anand\OneDrive\Desktop\Ask_Anand\studypulse\backend
+.\START_BACKEND.ps1
 ```
 
-### 3. Mobile App (Android/iOS)
+### Mobile App Only
 ```powershell
-cd studypulse\mobile
-flutter run
-# Select your device when prompted
+cd c:\Users\anand\OneDrive\Desktop\Ask_Anand\studypulse\mobile
+.\START_MOBILE.ps1
 ```
 
 ---
 
-## 🐛 Troubleshooting
+## 🧪 Testing the Fixes
 
-### Backend won't start
-```powershell
-cd studypulse\backend
-..\..\.venv\Scripts\pip install -r requirements.txt
-```
+Once the mobile app is running, test these critical features:
 
-### Mobile app errors
-```powershell
-cd studypulse\mobile
-flutter clean
-flutter pub get
-flutter run -d chrome
-```
+### ✅ Test 1: Study Session (MAIN FIX)
+1. Select a topic (e.g., "Banking Sector")
+2. Start a study session (1 minute for quick test)
+3. Wait for timer or tap "End Session"
+4. **Questions should appear INSTANTLY** ✨
 
-### RAG Pipeline fails
-- Make sure Docker Desktop is running
-- The app works fine without RAG - it uses Ollama directly
+### ✅ Test 2: Mock Test
+1. Answer the questions
+2. Submit the test
+3. View results with explanations
 
----
-
-## 📁 Project Structure
-
-```
-studypulse/
-├── START.bat               ← Double-click this!
-├── backend/                ← FastAPI + Supabase
-│   └── app/
-│       ├── main.py
-│       ├── core/
-│       └── api/
-├── mobile/                 ← Flutter app
-│   └── lib/
-│       ├── main.dart
-│       ├── screens/
-│       └── api/
-└── frontend/               ← Next.js (optional)
-```
+### ✅ Test 3: Multiple Topics
+Try different topics:
+- Banking Sector (5 questions)
+- Fiscal Policy (5 questions)
+- Constitution (5 questions)
+- Ancient India (5 questions)
+- Cardiovascular System (5 questions)
+- Upper Limb (5 questions)
 
 ---
 
-## 🎓 How It Works
+## 🔧 Alternative: Test Backend API Directly
 
-1. **Study Session**: Choose topic → Set timer (5-120 mins) → Study
-2. **Mock Test**: AI generates questions (50% previous + 50% new)
-3. **Score**: Get ≥85% to earn a ⭐
-4. **Track**: View progress on dashboard
+Visit http://localhost:8001/docs and test:
 
----
-
-## 🔑 Configuration
-
-All settings in `backend/app/core/config.py`:
-- Supabase: Already configured
-- Ollama: Uses local Phi4 model at port 11434
-- RAG: Optional, uses port 8001
+1. **Guest Login**: `POST /api/v1/auth/guest`
+2. **List Exams**: `GET /api/v1/exams/`
+3. **Start Session**: `POST /api/v1/study/sessions`
+4. **Complete Session**: `POST /api/v1/study/sessions/{id}/complete`
+   - This should return questions instantly!
 
 ---
 
-## 📞 Support
+## 📊 What's Fixed
 
-If something doesn't work:
-1. Check that Ollama is running: `ollama list`
-2. Test backend: http://localhost:8000/docs
-3. Check terminal output for errors
+✅ **No more loading delays** - Study sessions start instantly
+✅ **Questions on session end** - Questions appear immediately when session completes
+✅ **30 demo questions** - Ready to test without AI generation
+✅ **Instant results** - No waiting or background processing
 
 ---
 
-**Version**: 1.0  
-**Last Updated**: February 7, 2026
+## 🎯 Ready for Deployment
+
+Once you've tested all features:
+1. ✅ Verify everything works locally
+2. 🚀 Deploy backend to Google Cloud Run
+3. 📱 Build and publish mobile app
+4. 🌐 Configure your custom domain
+
+See **DEPLOYMENT_CHECKLIST.md** for complete deployment steps!
+
+---
+
+## 🆘 Troubleshooting
+
+**Backend not responding?**
+- Check if it's running on http://localhost:8001
+- Look for errors in the terminal
+- Make sure port 8001 is not in use by another app
+
+**Mobile app can't connect?**
+- Make sure backend is running
+- Check API URL in `mobile/lib/services/api.dart`
+
+**No questions appearing?**
+- Run: `python seed_demo_questions.py`
+- Check database has questions
+
+---
+
+**Everything is ready! Test the app and prepare for deployment! 🎊**

@@ -63,9 +63,9 @@ def setup_logging(log_level: str = "INFO", log_dir: str = "logs"):
     app_logger = logging.getLogger("app")
     app_logger.setLevel(log_level)
     
-    logging.info("✅ Logging configured successfully")
-    logging.info(f"📝 Log file: {log_file}")
-    logging.info(f"❌ Error log: {error_log_file}")
+    logging.info("[OK] Logging configured successfully")
+    logging.info(f"[INFO] Log file: {log_file}")
+    logging.info(f"[ERROR] Error log: {error_log_file}")
 
 
 # Utility functions for structured logging

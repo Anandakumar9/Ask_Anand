@@ -35,19 +35,35 @@ class Question(Base):
 
 
 class QuestionRating(Base):
-    """Stores user ratings for AI-generated questions (1-10 scale)."""
+    """Stores user ratings for AI-generated questions with detailed scoring.
+
+    Rating scale: 1-5 stars for overall rating
+    Category scores: 1-4 scale (Poor/Average/Good/Excellent for quality)
+    """
     __tablename__ = "question_ratings"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     question_id = Column(Integer, ForeignKey("questions.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    rating = Column(Integer, nullable=False)  # 1-10 scale for AI question quality
+
+    # Overall rating (1-5 stars)
+    rating = Column(Integer, nullable=False)  # 1-5 stars
+
+    # Detailed category scores
+    quality_score = Column(Integer, nullable=True)  # 1=Poor, 2=Average, 3=Good, 4=Excellent
+    clarity_score = Column(Integer, nullable=True)  # 1=Confusing, 2=Clear, 3=Very Clear
+    difficulty_score = Column(Integer, nullable=True)  # 1=Too Easy, 2=Just Right, 3=Too Hard
+    relevance_score = Column(Integer, nullable=True)  # 1=Off-topic, 2=Somewhat Relevant, 3=Highly Relevant
+
+    # Textual feedback
     feedback_text = Column(Text, nullable=True)  # Optional text feedback
+
+    # Metadata
     prompt_version = Column(String(50), nullable=True)  # Which prompt generated this question
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
+
     # Relationships
     question = relationship("Question", back_populates="ratings")
-    
+
     def __repr__(self):
-        return f"<QuestionRating(question_id={self.question_id}, rating={self.rating})>"
+        return f"<QuestionRating(question_id={self.question_id}, rating={self.rating}, quality={self.quality_score})>"
