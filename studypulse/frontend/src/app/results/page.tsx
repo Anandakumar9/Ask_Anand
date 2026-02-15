@@ -6,12 +6,22 @@ import { CheckCircle2, ChevronLeft, Share2, Loader2, XCircle, Clock, Star, Trend
 import { testApi } from '@/services/api';
 import confetti from 'canvas-confetti';
 
+interface TestResults {
+    star_earned: boolean;
+    score_percentage: number;
+    correct_count: number;
+    incorrect_count: number;
+    time_taken_seconds: number;
+    accuracy: number;
+    speed_rating: string;
+}
+
 function ResultsContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const testId = searchParams.get('testId');
 
-    const [results, setResults] = useState<any>(null);
+    const [results, setResults] = useState<TestResults | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
