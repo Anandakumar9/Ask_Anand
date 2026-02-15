@@ -172,13 +172,10 @@ async def test_user(test_db: AsyncSession) -> User:
     """Create a test user in the database."""
     user = User(
         email="test@example.com",
-        username="testuser",
-        full_name="Test User",
+        name="Test User",
         hashed_password=get_password_hash("testpassword123"),
         is_active=True,
-        is_superuser=False,
-        total_stars=10,
-        current_streak=3
+        total_stars=10
     )
     test_db.add(user)
     await test_db.commit()
@@ -191,11 +188,9 @@ async def admin_user(test_db: AsyncSession) -> User:
     """Create an admin user in the database."""
     user = User(
         email="admin@example.com",
-        username="admin",
-        full_name="Admin User",
+        name="Admin User",
         hashed_password=get_password_hash("adminpassword123"),
         is_active=True,
-        is_superuser=True,
         total_stars=100
     )
     test_db.add(user)
@@ -207,13 +202,13 @@ async def admin_user(test_db: AsyncSession) -> User:
 @pytest.fixture
 def test_user_token(test_user: User) -> str:
     """Generate a JWT token for the test user."""
-    return create_access_token(data={"sub": test_user.email})
+    return create_access_token(data={"sub": str(test_user.id)})
 
 
 @pytest.fixture
 def admin_user_token(admin_user: User) -> str:
     """Generate a JWT token for the admin user."""
-    return create_access_token(data={"sub": admin_user.email})
+    return create_access_token(data={"sub": str(admin_user.id)})
 
 
 @pytest.fixture

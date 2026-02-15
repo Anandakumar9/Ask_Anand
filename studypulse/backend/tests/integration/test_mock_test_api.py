@@ -13,13 +13,12 @@ class TestMockTestCreation:
         """Test successfully starting a mock test."""
         test_config = {
             "topic_id": test_topic.id,
-            "num_questions": 10,
-            "time_limit_minutes": 30,
-            "difficulty": "medium"
+            "question_count": 10,
+            "time_limit_seconds": 600
         }
 
         response = test_client.post(
-            "/api/v1/mock-tests",
+            "/api/v1/mock-test/start",
             headers=auth_headers,
             json=test_config
         )
@@ -27,17 +26,17 @@ class TestMockTestCreation:
         assert response.status_code in [status.HTTP_201_CREATED, status.HTTP_200_OK]
         data = response.json()
         assert "test_id" in data or "id" in data
-        assert "questions" in data or "num_questions" in data
+        assert "questions" in data or "question_count" in data
 
     async def test_start_mock_test_without_auth(self, test_client, test_topic):
         """Test starting mock test without authentication."""
         test_config = {
             "topic_id": test_topic.id,
-            "num_questions": 10,
-            "time_limit_minutes": 30
+            "question_count": 10,
+            "time_limit_seconds": 600
         }
 
-        response = test_client.post("/api/v1/mock-tests", json=test_config)
+        response = test_client.post("/api/v1/mock-test/start", json=test_config)
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -45,12 +44,12 @@ class TestMockTestCreation:
         """Test starting mock test with non-existent topic."""
         test_config = {
             "topic_id": 99999,  # Non-existent
-            "num_questions": 10,
-            "time_limit_minutes": 30
+            "question_count": 10,
+            "time_limit_seconds": 600
         }
 
         response = test_client.post(
-            "/api/v1/mock-tests",
+            "/api/v1/mock-test/start",
             headers=auth_headers,
             json=test_config
         )
@@ -66,12 +65,12 @@ class TestMockTestCreation:
         """Test starting mock test requesting more questions than available."""
         test_config = {
             "topic_id": test_topic.id,
-            "num_questions": 1000,  # More than available
-            "time_limit_minutes": 30
+            "question_count": 1000,  # More than available
+            "time_limit_seconds": 600
         }
 
         response = test_client.post(
-            "/api/v1/mock-tests",
+            "/api/v1/mock-test/start",
             headers=auth_headers,
             json=test_config
         )
@@ -89,14 +88,13 @@ class TestMockTestCreation:
         """Test starting mock test with custom configuration."""
         test_config = {
             "topic_id": test_topic.id,
-            "num_questions": 5,
-            "time_limit_minutes": 15,
-            "difficulty": "easy",
-            "question_types": ["previous_year", "ai_generated"]
+            "question_count": 5,
+            "time_limit_seconds": 300,
+            "previous_year_ratio": 0.5
         }
 
         response = test_client.post(
-            "/api/v1/mock-tests",
+            "/api/v1/mock-test/start",
             headers=auth_headers,
             json=test_config
         )
@@ -117,9 +115,9 @@ class TestMockTestExecution:
     ):
         """Test retrieving questions for a mock test."""
         # Start mock test
-        test_config = {"topic_id": test_topic.id, "num_questions": 3, "time_limit_minutes": 30}
+        test_config = {"topic_id": test_topic.id, "question_count": 3, "time_limit_seconds": 600}
         create_response = test_client.post(
-            "/api/v1/mock-tests",
+            "/api/v1/mock-test/start",
             headers=auth_headers,
             json=test_config
         )
@@ -131,7 +129,7 @@ class TestMockTestExecution:
 
         # Get questions
         response = test_client.get(
-            f"/api/v1/mock-tests/{test_id}/questions",
+            f"/api/v1/mock-test/{test_id}/questions",
             headers=auth_headers
         )
 
@@ -144,9 +142,9 @@ class TestMockTestExecution:
     ):
         """Test submitting an answer during mock test."""
         # Start mock test
-        test_config = {"topic_id": test_topic.id, "num_questions": 3, "time_limit_minutes": 30}
+        test_config = {"topic_id": test_topic.id, "question_count": 3, "time_limit_seconds": 600}
         create_response = test_client.post(
-            "/api/v1/mock-tests",
+            "/api/v1/mock-test/start",
             headers=auth_headers,
             json=test_config
         )
@@ -164,7 +162,7 @@ class TestMockTestExecution:
         }
 
         response = test_client.post(
-            f"/api/v1/mock-tests/{test_id}/answers",
+            f"/api/v1/mock-test/{test_id}/answers",
             headers=auth_headers,
             json=answer_data
         )
@@ -180,9 +178,9 @@ class TestMockTestExecution:
     ):
         """Test submitting entire mock test."""
         # Start mock test
-        test_config = {"topic_id": test_topic.id, "num_questions": 2, "time_limit_minutes": 30}
+        test_config = {"topic_id": test_topic.id, "question_count": 2, "time_limit_seconds": 600}
         create_response = test_client.post(
-            "/api/v1/mock-tests",
+            "/api/v1/mock-test/start",
             headers=auth_headers,
             json=test_config
         )
@@ -209,7 +207,7 @@ class TestMockTestExecution:
         }
 
         response = test_client.post(
-            f"/api/v1/mock-tests/{test_id}/submit",
+            f"/api/v1/mock-test/{test_id}/submit",
             headers=auth_headers,
             json=submission_data
         )
@@ -235,9 +233,9 @@ class TestMockTestResults:
     ):
         """Test retrieving mock test results."""
         # Create and complete a mock test
-        test_config = {"topic_id": test_topic.id, "num_questions": 2, "time_limit_minutes": 30}
+        test_config = {"topic_id": test_topic.id, "question_count": 2, "time_limit_seconds": 600}
         create_response = test_client.post(
-            "/api/v1/mock-tests",
+            "/api/v1/mock-test/start",
             headers=auth_headers,
             json=test_config
         )
@@ -256,7 +254,7 @@ class TestMockTestResults:
         }
 
         submit_response = test_client.post(
-            f"/api/v1/mock-tests/{test_id}/submit",
+            f"/api/v1/mock-test/{test_id}/submit",
             headers=auth_headers,
             json=submission_data
         )
@@ -266,7 +264,7 @@ class TestMockTestResults:
 
         # Get results
         response = test_client.get(
-            f"/api/v1/mock-tests/{test_id}/results",
+            f"/api/v1/mock-test/{test_id}/results",
             headers=auth_headers
         )
 
@@ -280,9 +278,9 @@ class TestMockTestResults:
     ):
         """Test retrieving detailed mock test report with question-wise analysis."""
         # Create and complete mock test
-        test_config = {"topic_id": test_topic.id, "num_questions": 2, "time_limit_minutes": 30}
+        test_config = {"topic_id": test_topic.id, "question_count": 2, "time_limit_seconds": 600}
         create_response = test_client.post(
-            "/api/v1/mock-tests",
+            "/api/v1/mock-test/start",
             headers=auth_headers,
             json=test_config
         )
@@ -300,14 +298,14 @@ class TestMockTestResults:
         }
 
         test_client.post(
-            f"/api/v1/mock-tests/{test_id}/submit",
+            f"/api/v1/mock-test/{test_id}/submit",
             headers=auth_headers,
             json=submission_data
         )
 
         # Get detailed report
         response = test_client.get(
-            f"/api/v1/mock-tests/{test_id}/report",
+            f"/api/v1/mock-test/{test_id}/report",
             headers=auth_headers
         )
 
@@ -329,7 +327,7 @@ class TestMockTestHistory:
     async def test_list_user_mock_tests(self, test_client, auth_headers):
         """Test listing all mock tests taken by user."""
         response = test_client.get(
-            "/api/v1/mock-tests/history",
+            "/api/v1/mock-test/history/all",
             headers=auth_headers
         )
 
@@ -347,9 +345,9 @@ class TestMockTestHistory:
     ):
         """Test retrieving a specific mock test by ID."""
         # Create a mock test
-        test_config = {"topic_id": test_topic.id, "num_questions": 3, "time_limit_minutes": 30}
+        test_config = {"topic_id": test_topic.id, "question_count": 3, "time_limit_seconds": 600}
         create_response = test_client.post(
-            "/api/v1/mock-tests",
+            "/api/v1/mock-test/start",
             headers=auth_headers,
             json=test_config
         )
@@ -361,7 +359,7 @@ class TestMockTestHistory:
 
         # Retrieve it
         response = test_client.get(
-            f"/api/v1/mock-tests/{test_id}",
+            f"/api/v1/mock-test/{test_id}",
             headers=auth_headers
         )
 
@@ -374,9 +372,9 @@ class TestMockTestHistory:
     ):
         """Test deleting a mock test."""
         # Create a mock test
-        test_config = {"topic_id": test_topic.id, "num_questions": 3, "time_limit_minutes": 30}
+        test_config = {"topic_id": test_topic.id, "question_count": 3, "time_limit_seconds": 600}
         create_response = test_client.post(
-            "/api/v1/mock-tests",
+            "/api/v1/mock-test/start",
             headers=auth_headers,
             json=test_config
         )
@@ -388,7 +386,7 @@ class TestMockTestHistory:
 
         # Delete it
         response = test_client.delete(
-            f"/api/v1/mock-tests/{test_id}",
+            f"/api/v1/mock-test/{test_id}",
             headers=auth_headers
         )
 
@@ -411,9 +409,9 @@ class TestMockTestStarRewards:
         initial_stars = test_user.total_stars
 
         # Create mock test
-        test_config = {"topic_id": test_topic.id, "num_questions": 2, "time_limit_minutes": 30}
+        test_config = {"topic_id": test_topic.id, "question_count": 2, "time_limit_seconds": 600}
         create_response = test_client.post(
-            "/api/v1/mock-tests",
+            "/api/v1/mock-test/start",
             headers=auth_headers,
             json=test_config
         )
@@ -440,7 +438,7 @@ class TestMockTestStarRewards:
         }
 
         response = test_client.post(
-            f"/api/v1/mock-tests/{test_id}/submit",
+            f"/api/v1/mock-test/{test_id}/submit",
             headers=auth_headers,
             json=submission_data
         )
@@ -461,7 +459,7 @@ class TestMockTestLeaderboard:
     ):
         """Test retrieving leaderboard for a topic."""
         response = test_client.get(
-            f"/api/v1/mock-tests/leaderboard/topic/{test_topic.id}"
+            f"/api/v1/mock-test/leaderboard/topic/{test_topic.id}"
         )
 
         assert response.status_code in [
@@ -473,9 +471,12 @@ class TestMockTestLeaderboard:
             data = response.json()
             assert isinstance(data, list) or "leaderboard" in data
 
-    async def test_get_global_leaderboard(self, test_client):
+    async def test_get_global_leaderboard(self, test_client, auth_headers):
         """Test retrieving global leaderboard."""
-        response = test_client.get("/api/v1/leaderboard")
+        response = test_client.get(
+            "/api/v1/leaderboard",
+            headers=auth_headers
+        )
 
         assert response.status_code in [
             status.HTTP_200_OK,
