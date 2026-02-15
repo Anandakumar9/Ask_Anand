@@ -36,8 +36,7 @@ class TestCompleteUserJourney:
         print("\n[E2E] Step 1: User Registration")
         register_data = {
             "email": "e2e_user@example.com",
-            "username": "e2euser",
-            "full_name": "E2E Test User",
+            "name": "E2E Test User",
             "password": "SecurePassword123!"
         }
 

@@ -20,8 +20,7 @@ from app.core.database import Base, get_db
 from app.core.security import create_access_token, get_password_hash
 from app.main import app
 from app.models.user import User
-from app.models.exam import Exam
-from app.models.topic import Topic
+from app.models.exam import Exam, Subject, Topic
 from app.models.question import Question
 
 
@@ -248,14 +247,29 @@ async def test_exam(test_db: AsyncSession) -> Exam:
 
 
 @pytest.fixture
-async def test_topic(test_db: AsyncSession, test_exam: Exam) -> Topic:
+async def test_subject(test_db: AsyncSession, test_exam: Exam) -> Subject:
+    """Create a test subject."""
+    subject = Subject(
+        exam_id=test_exam.id,
+        name="General Studies",
+        description="General Studies for UPSC",
+        is_active=True
+    )
+    test_db.add(subject)
+    await test_db.commit()
+    await test_db.refresh(subject)
+    return subject
+
+
+@pytest.fixture
+async def test_topic(test_db: AsyncSession, test_subject: Subject) -> Topic:
     """Create a test topic."""
     topic = Topic(
-        exam_id=test_exam.id,
+        subject_id=test_subject.id,
         name="Indian History",
         description="Ancient and Medieval Indian History",
-        difficulty="medium",
-        estimated_time_minutes=30
+        difficulty_level="medium",
+        estimated_study_mins=30
     )
     test_db.add(topic)
     await test_db.commit()
