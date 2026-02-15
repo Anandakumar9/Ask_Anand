@@ -1,5 +1,5 @@
 """Pydantic schemas for exam, subject, and topic operations."""
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 
@@ -15,8 +15,7 @@ class TopicResponse(BaseModel):
     icon_url: Optional[str] = None
     question_count: int = 0
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SubjectResponse(BaseModel):
@@ -29,8 +28,7 @@ class SubjectResponse(BaseModel):
     icon_url: Optional[str] = None
     topics: List[TopicResponse] = []
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SubjectBrief(BaseModel):
@@ -41,8 +39,7 @@ class SubjectBrief(BaseModel):
     icon_url: Optional[str] = None
     topic_count: int = 0
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ExamResponse(BaseModel):
@@ -57,8 +54,7 @@ class ExamResponse(BaseModel):
     icon_url: Optional[str] = None
     subjects: List[SubjectBrief] = []
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ExamBrief(BaseModel):
@@ -69,5 +65,4 @@ class ExamBrief(BaseModel):
     icon_url: Optional[str] = None
     subject_count: int = 0
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

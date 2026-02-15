@@ -1,5 +1,5 @@
 """Pydantic schemas for mock test operations."""
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 from typing import Optional, List, Dict
 from datetime import datetime
 
@@ -12,8 +12,7 @@ class QuestionDisplay(BaseModel):
     source: str  # "PREVIOUS" or "AI"
     difficulty: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class QuestionWithAnswer(QuestionDisplay):
@@ -49,8 +48,7 @@ class StudySessionResponse(BaseModel):
     ended_at: Optional[datetime] = None
     completed: bool = False
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MockTestCreate(BaseModel):
@@ -86,8 +84,7 @@ class MockTestResponse(BaseModel):
     time_limit_seconds: int
     started_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AnswerItem(BaseModel):
@@ -148,8 +145,7 @@ class TestResult(BaseModel):
     accuracy: float
     speed_rating: str  # "fast", "good", "slow"
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RateQuestionRequest(BaseModel):

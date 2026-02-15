@@ -252,7 +252,7 @@ class UPSCQuestionScraper:
                     if correct_pos:
                         try:
                             correct_answer = chr(65 + int(correct_pos))
-                        except:
+                        except (ValueError, TypeError):
                             pass
 
                 if not correct_answer:

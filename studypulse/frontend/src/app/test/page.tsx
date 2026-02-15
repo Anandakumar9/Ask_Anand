@@ -5,15 +5,23 @@ import { ChevronLeft, Clock, Bookmark, ChevronRight, Loader2, CheckCircle2 } fro
 import { useRouter, useSearchParams } from 'next/navigation';
 import { testApi } from '@/services/api';
 
+interface TestQuestion {
+    id: number;
+    question_text: string;
+    options: Record<string, string>;
+    source: string;
+    difficulty: string;
+}
+
 function MockTestContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const topicId = searchParams.get('topicId');
     const sessionId = searchParams.get('sessionId');
 
-    const [questions, setQuestions] = useState<any[]>([]);
+    const [questions, setQuestions] = useState<TestQuestion[]>([]);
     const [currentIdx, setCurrentIdx] = useState(0);
-    const [answers, setAnswers] = useState<any>({});
+    const [answers, setAnswers] = useState<Record<number, string>>({});
     const [loading, setLoading] = useState(true);
     const [testId, setTestId] = useState<number | null>(null);
     const [timeTaken, setTimeTaken] = useState(0);
@@ -44,7 +52,7 @@ function MockTestContent() {
     }, [topicId, sessionId, router]);
 
     useEffect(() => {
-        let interval: any = null;
+        let interval: ReturnType<typeof setInterval> | null = null;
         if (!loading && questions.length > 0) {
             interval = setInterval(() => {
                 setTimeTaken(prev => prev + 1);
@@ -138,7 +146,7 @@ function MockTestContent() {
                 </div>
 
                 <div className="space-y-3">
-                    {Object.entries(currentQuestion.options).map(([id, text]: any) => (
+                    {Object.entries(currentQuestion.options).map(([id, text]: [string, string]) => (
                         <div
                             key={id}
                             onClick={() => handleSelect(id)}

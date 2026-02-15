@@ -13,7 +13,7 @@ class TestStudySession:
         """Test successfully starting a study session."""
         session_data = {
             "topic_id": test_topic.id,
-            "time_limit_minutes": 30
+            "duration_mins": 30
         }
 
         response = test_client.post(
@@ -31,7 +31,7 @@ class TestStudySession:
         """Test starting study session without authentication."""
         session_data = {
             "topic_id": test_topic.id,
-            "time_limit_minutes": 30
+            "duration_mins": 30
         }
 
         response = test_client.post("/api/v1/study/sessions", json=session_data)
@@ -42,7 +42,7 @@ class TestStudySession:
         """Test starting study session with non-existent topic."""
         session_data = {
             "topic_id": 99999,  # Non-existent
-            "time_limit_minutes": 30
+            "duration_mins": 30
         }
 
         response = test_client.post(
@@ -59,7 +59,7 @@ class TestStudySession:
     async def test_get_study_session(self, test_client, auth_headers, test_topic):
         """Test retrieving a study session."""
         # First create a session
-        session_data = {"topic_id": test_topic.id, "time_limit_minutes": 30}
+        session_data = {"topic_id": test_topic.id, "duration_mins": 30}
         create_response = test_client.post(
             "/api/v1/study/sessions",
             headers=auth_headers,
@@ -84,7 +84,7 @@ class TestStudySession:
     async def test_end_study_session(self, test_client, auth_headers, test_topic):
         """Test ending a study session."""
         # Create session first
-        session_data = {"topic_id": test_topic.id, "time_limit_minutes": 30}
+        session_data = {"topic_id": test_topic.id, "duration_mins": 30}
         create_response = test_client.post(
             "/api/v1/study/sessions",
             headers=auth_headers,
@@ -96,10 +96,11 @@ class TestStudySession:
 
         session_id = create_response.json().get("id") or create_response.json().get("session_id")
 
-        # End session
+        # End session (actual endpoint is /complete)
         response = test_client.post(
-            f"/api/v1/study/sessions/{session_id}/end",
-            headers=auth_headers
+            f"/api/v1/study/sessions/{session_id}/complete",
+            headers=auth_headers,
+            params={"actual_duration_mins": 25}
         )
 
         assert response.status_code in [
@@ -117,7 +118,7 @@ class TestQuestionDelivery:
     ):
         """Test getting next question in study session."""
         # Start session
-        session_data = {"topic_id": test_topic.id, "time_limit_minutes": 30}
+        session_data = {"topic_id": test_topic.id, "duration_mins": 30}
         session_response = test_client.post(
             "/api/v1/study/sessions",
             headers=auth_headers,
@@ -145,56 +146,30 @@ class TestQuestionDelivery:
             assert "question_text" in data or "question" in data
             assert "options" in data
 
-    async def test_submit_answer(
+    async def test_check_question_status(
         self, test_client, auth_headers, test_topic, test_questions
     ):
-        """Test submitting an answer to a question."""
+        """Test checking question status for a study session."""
         # Start session
-        session_data = {"topic_id": test_topic.id, "time_limit_minutes": 30}
+        session_data = {"topic_id": test_topic.id, "duration_mins": 30}
         session_response = test_client.post(
             "/api/v1/study/sessions",
             headers=auth_headers,
             json=session_data
         )
 
-        if session_response.status_code not in [status.HTTP_201_CREATED, status.HTTP_200_OK]:
-            pytest.skip("Cannot create session for test")
-
+        assert session_response.status_code in [status.HTTP_201_CREATED, status.HTTP_200_OK]
         session_id = session_response.json().get("id") or session_response.json().get("session_id")
 
-        # Get a question
-        question_response = test_client.get(
-            f"/api/v1/study/sessions/{session_id}/next",
+        # Check question generation status
+        question_status_response = test_client.get(
+            f"/api/v1/study/sessions/{session_id}/question-status",
             headers=auth_headers
         )
 
-        if question_response.status_code != status.HTTP_200_OK:
-            pytest.skip("Cannot get question for test")
-
-        question_id = question_response.json().get("id") or test_questions[0].id
-
-        # Submit answer
-        answer_data = {
-            "question_id": question_id,
-            "selected_answer": "B",
-            "time_taken_seconds": 30
-        }
-
-        response = test_client.post(
-            f"/api/v1/study/sessions/{session_id}/answer",
-            headers=auth_headers,
-            json=answer_data
-        )
-
-        assert response.status_code in [
-            status.HTTP_200_OK,
-            status.HTTP_201_CREATED,
-            status.HTTP_404_NOT_FOUND  # If endpoint structure is different
-        ]
-
-        if response.status_code in [status.HTTP_200_OK, status.HTTP_201_CREATED]:
-            data = response.json()
-            assert "correct" in data or "is_correct" in data
+        assert question_status_response.status_code == status.HTTP_200_OK
+        data = question_status_response.json()
+        assert "status" in data
 
     async def test_get_answer_explanation(
         self, test_client, auth_headers, test_questions
@@ -253,9 +228,9 @@ class TestStudyProgress:
         ]
 
     async def test_get_recent_sessions(self, test_client, auth_headers):
-        """Test retrieving recent study sessions."""
+        """Test retrieving study sessions."""
         response = test_client.get(
-            "/api/v1/study/sessions/recent",
+            "/api/v1/study/sessions",
             headers=auth_headers
         )
 
@@ -280,7 +255,7 @@ class TestStarRewards:
         initial_stars = test_user.total_stars
 
         # Start session and answer correctly
-        session_data = {"topic_id": test_topic.id, "time_limit_minutes": 30}
+        session_data = {"topic_id": test_topic.id, "duration_mins": 30}
         session_response = test_client.post(
             "/api/v1/study/sessions",
             headers=auth_headers,
@@ -317,7 +292,7 @@ class TestStarRewards:
     ):
         """Test no stars awarded for wrong answers."""
         # Start session
-        session_data = {"topic_id": test_topic.id, "time_limit_minutes": 30}
+        session_data = {"topic_id": test_topic.id, "duration_mins": 30}
         session_response = test_client.post(
             "/api/v1/study/sessions",
             headers=auth_headers,
@@ -363,9 +338,11 @@ class TestTopicListing:
         assert len(data) > 0
         assert data[0]["id"] == test_exam.id
 
-    async def test_get_exam_topics(self, test_client, test_exam, test_topic):
-        """Test getting topics for a specific exam."""
-        response = test_client.get(f"/api/v1/exams/{test_exam.id}/topics")
+    async def test_get_exam_topics(self, test_client, test_exam, test_subject, test_topic):
+        """Test getting topics for a specific exam and subject."""
+        response = test_client.get(
+            f"/api/v1/exams/{test_exam.id}/subjects/{test_subject.id}/topics"
+        )
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -375,7 +352,7 @@ class TestTopicListing:
 
     async def test_get_topic_details(self, test_client, test_topic):
         """Test getting details of a specific topic."""
-        response = test_client.get(f"/api/v1/topics/{test_topic.id}")
+        response = test_client.get(f"/api/v1/exams/topics/{test_topic.id}")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()

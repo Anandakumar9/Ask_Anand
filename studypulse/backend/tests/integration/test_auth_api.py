@@ -11,8 +11,7 @@ class TestUserRegistration:
         """Test successful user registration."""
         user_data = {
             "email": "newuser@example.com",
-            "username": "newuser",
-            "full_name": "New User",
+            "name": "New User",
             "password": "SecurePassword123!"
         }
 
@@ -21,7 +20,6 @@ class TestUserRegistration:
         assert response.status_code == status.HTTP_201_CREATED
         data = response.json()
         assert data["email"] == user_data["email"]
-        assert data["username"] == user_data["username"]
         assert "id" in data
         assert "hashed_password" not in data  # Should not expose password
 
@@ -29,8 +27,7 @@ class TestUserRegistration:
         """Test registration with already registered email."""
         user_data = {
             "email": test_user.email,  # Already exists
-            "username": "anotheruser",
-            "full_name": "Another User",
+            "name": "Another User",
             "password": "Password123!"
         }
 
@@ -43,8 +40,7 @@ class TestUserRegistration:
         """Test registration with invalid email format."""
         user_data = {
             "email": "not-an-email",
-            "username": "testuser",
-            "full_name": "Test User",
+            "name": "Test User",
             "password": "Password123!"
         }
 
@@ -60,8 +56,7 @@ class TestUserRegistration:
         """Test registration with weak password."""
         user_data = {
             "email": "user@example.com",
-            "username": "testuser",
-            "full_name": "Test User",
+            "name": "Test User",
             "password": "123"  # Too weak
         }
 
@@ -79,7 +74,7 @@ class TestUserRegistration:
         """Test registration with missing required fields."""
         user_data = {
             "email": "user@example.com",
-            # Missing username, full_name, password
+            # Missing name, password
         }
 
         response = test_client.post("/api/v1/auth/register", json=user_data)
@@ -241,14 +236,13 @@ class TestUserProfile:
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["email"] == test_user.email
-        assert data["username"] == test_user.username
+        assert data["name"] == test_user.name
         assert data["id"] == test_user.id
 
     async def test_update_user_profile(self, test_client, auth_headers):
         """Test updating user profile."""
         update_data = {
-            "full_name": "Updated Name",
-            "username": "updateduser"
+            "name": "Updated Name"
         }
 
         response = test_client.put(

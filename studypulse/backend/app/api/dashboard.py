@@ -146,9 +146,20 @@ async def get_recent_activity(user_id: int, db: AsyncSession, limit: int = 10) -
         topic_result = await db.execute(topic_query)
         topic = topic_result.scalar_one_or_none()
         
+        topic_name = topic.name if topic else "Unknown"
+        # Get subject name
+        subject_name = "Unknown"
+        if topic:
+            subject_query = select(Subject).where(Subject.id == topic.subject_id)
+            subject_result = await db.execute(subject_query)
+            subject = subject_result.scalar_one_or_none()
+            subject_name = subject.name if subject else "Unknown"
+        
         activities.append(RecentActivity(
             type="study",
-            title=f"Study Session - {topic.name if topic else 'Unknown'}",
+            title=f"Study Session - {topic_name}",
+            topic_name=topic_name,
+            subject_name=subject_name,
             duration_mins=session.actual_duration_mins,
             timestamp=session.ended_at or session.started_at
         ))
@@ -168,9 +179,20 @@ async def get_recent_activity(user_id: int, db: AsyncSession, limit: int = 10) -
         topic_result = await db.execute(topic_query)
         topic = topic_result.scalar_one_or_none()
         
+        topic_name = topic.name if topic else "Unknown"
+        # Get subject name
+        subject_name = "Unknown"
+        if topic:
+            subject_query = select(Subject).where(Subject.id == topic.subject_id)
+            subject_result = await db.execute(subject_query)
+            subject = subject_result.scalar_one_or_none()
+            subject_name = subject.name if subject else "Unknown"
+        
         activities.append(RecentActivity(
             type="test",
-            title=f"Mock Test - {topic.name if topic else 'Unknown'}",
+            title=f"Mock Test - {topic_name}",
+            topic_name=topic_name,
+            subject_name=subject_name,
             score=test.score_percentage,
             star_earned=test.star_earned,
             timestamp=test.completed_at or test.started_at

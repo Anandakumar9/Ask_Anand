@@ -38,19 +38,22 @@ async def list_exams(
     result = await db.execute(query)
     exams = result.scalars().all()
     
-    # Add subject count
+    # Get subject counts in a single query
+    count_query = (
+        select(Subject.exam_id, func.count(Subject.id).label("cnt"))
+        .group_by(Subject.exam_id)
+    )
+    count_result = await db.execute(count_query)
+    subject_counts = {row.exam_id: row.cnt for row in count_result}
+    
     exam_list = []
     for exam in exams:
-        count_query = select(func.count(Subject.id)).where(Subject.exam_id == exam.id)
-        count_result = await db.execute(count_query)
-        subject_count = count_result.scalar()
-        
         exam_list.append(ExamBrief(
             id=exam.id,
             name=exam.name,
             category=exam.category,
             icon_url=exam.icon_url,
-            subject_count=subject_count
+            subject_count=subject_counts.get(exam.id, 0)
         ))
     
     return exam_list
@@ -78,18 +81,27 @@ async def get_exam(exam_id: int, db: AsyncSession = Depends(get_db)):
     subjects_result = await db.execute(subjects_query)
     subjects = subjects_result.scalars().all()
     
+    # Get topic counts in a single query
+    if subjects:
+        subject_ids = [s.id for s in subjects]
+        count_query = (
+            select(Topic.subject_id, func.count(Topic.id).label("cnt"))
+            .where(Topic.subject_id.in_(subject_ids))
+            .group_by(Topic.subject_id)
+        )
+        count_result = await db.execute(count_query)
+        topic_counts = {row.subject_id: row.cnt for row in count_result}
+    else:
+        topic_counts = {}
+    
     subject_list = []
     for subject in subjects:
-        count_query = select(func.count(Topic.id)).where(Topic.subject_id == subject.id)
-        count_result = await db.execute(count_query)
-        topic_count = count_result.scalar()
-        
         subject_list.append(SubjectBrief(
             id=subject.id,
             exam_id=subject.exam_id,
             name=subject.name,
             icon_url=subject.icon_url,
-            topic_count=topic_count
+            topic_count=topic_counts.get(subject.id, 0)
         ))
     
     return ExamResponse(
@@ -125,18 +137,27 @@ async def list_subjects(exam_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(query)
     subjects = result.scalars().all()
     
+    # Get topic counts in a single query
+    if subjects:
+        subject_ids = [s.id for s in subjects]
+        count_query = (
+            select(Topic.subject_id, func.count(Topic.id).label("cnt"))
+            .where(Topic.subject_id.in_(subject_ids))
+            .group_by(Topic.subject_id)
+        )
+        count_result = await db.execute(count_query)
+        topic_counts = {row.subject_id: row.cnt for row in count_result}
+    else:
+        topic_counts = {}
+    
     subject_list = []
     for subject in subjects:
-        count_query = select(func.count(Topic.id)).where(Topic.subject_id == subject.id)
-        count_result = await db.execute(count_query)
-        topic_count = count_result.scalar()
-        
         subject_list.append(SubjectBrief(
             id=subject.id,
             exam_id=subject.exam_id,
             name=subject.name,
             icon_url=subject.icon_url,
-            topic_count=topic_count
+            topic_count=topic_counts.get(subject.id, 0)
         ))
     
     return subject_list
@@ -194,12 +215,21 @@ async def list_topics(
     result = await db.execute(query)
     topics = result.scalars().all()
     
+    # Get question counts in a single query
+    if topics:
+        topic_ids = [t.id for t in topics]
+        q_count_query = (
+            select(Question.topic_id, func.count(Question.id).label("cnt"))
+            .where(Question.topic_id.in_(topic_ids))
+            .group_by(Question.topic_id)
+        )
+        q_count_result = await db.execute(q_count_query)
+        question_counts = {row.topic_id: row.cnt for row in q_count_result}
+    else:
+        question_counts = {}
+    
     topic_list = []
     for t in topics:
-        q_count_query = select(func.count(Question.id)).where(Question.topic_id == t.id)
-        q_count_result = await db.execute(q_count_query)
-        q_count = q_count_result.scalar() or 0
-        
         topic_list.append(TopicResponse(
             id=t.id,
             subject_id=t.subject_id,
@@ -208,7 +238,7 @@ async def list_topics(
             difficulty_level=t.difficulty_level,
             estimated_study_mins=t.estimated_study_mins,
             icon_url=t.icon_url,
-            question_count=q_count
+            question_count=question_counts.get(t.id, 0)
         ))
     
     return topic_list

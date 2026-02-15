@@ -413,8 +413,8 @@ class RedisCache:
             try:
                 await self._redis.setex(key, 600, status)
                 return
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Redis setex failed for pregen status: {e}")
         # Memory fallback
         self._memory_set(key, status, 600)
 

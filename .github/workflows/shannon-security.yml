@@ -140,7 +140,7 @@ jobs:
             });
 
       - name: Fail on Critical Issues
-        if: steps.parse-report.outputs.critical > 0
+        if: ${{ success() && fromJSON(steps.parse-report.outputs.critical) > 0 }}
         run: |
           echo "::error::Critical security issues found! Check the security report."
           exit 1

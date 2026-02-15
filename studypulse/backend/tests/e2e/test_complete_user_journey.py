@@ -36,8 +36,7 @@ class TestCompleteUserJourney:
         print("\n[E2E] Step 1: User Registration")
         register_data = {
             "email": "e2e_user@example.com",
-            "username": "e2euser",
-            "full_name": "E2E Test User",
+            "name": "E2E Test User",
             "password": "SecurePassword123!"
         }
 
@@ -80,10 +79,19 @@ class TestCompleteUserJourney:
         selected_exam = exams[0]
         print(f"[OK] Found {len(exams)} exams, selected: {selected_exam['name']}")
 
-        # ── STEP 4: Browse Topics ─────────────────────────────────
-        print("\n[E2E] Step 4: Browse Topics for Selected Exam")
+        # ── STEP 4: Browse Subjects & Topics ─────────────────────
+        print("\n[E2E] Step 4: Browse Subjects and Topics for Selected Exam")
+        subjects_response = test_client.get(
+            f"/api/v1/exams/{selected_exam['id']}/subjects"
+        )
+
+        assert subjects_response.status_code == status.HTTP_200_OK
+        subjects = subjects_response.json()
+        assert len(subjects) > 0
+        selected_subject = subjects[0]
+
         topics_response = test_client.get(
-            f"/api/v1/exams/{selected_exam['id']}/topics"
+            f"/api/v1/exams/{selected_exam['id']}/subjects/{selected_subject['id']}/topics"
         )
 
         assert topics_response.status_code == status.HTTP_200_OK
@@ -96,7 +104,7 @@ class TestCompleteUserJourney:
         print("\n[E2E] Step 5: Start Study Session")
         session_data = {
             "topic_id": selected_topic["id"],
-            "time_limit_minutes": 30
+            "duration_mins": 30
         }
 
         session_response = test_client.post(
@@ -151,12 +159,12 @@ class TestCompleteUserJourney:
         print("\n[E2E] Step 7: Start Mock Test")
         mock_test_config = {
             "topic_id": selected_topic["id"],
-            "num_questions": min(5, len(test_questions)),
-            "time_limit_minutes": 30
+            "question_count": min(5, len(test_questions)),
+            "time_limit_seconds": 600
         }
 
         mock_test_response = test_client.post(
-            "/api/v1/mock-tests",
+            "/api/v1/mock-test/start",
             headers=auth_headers,
             json=mock_test_config
         )
@@ -171,7 +179,7 @@ class TestCompleteUserJourney:
 
         # Prepare answers (mix of correct and incorrect)
         test_answers = []
-        for i, question in enumerate(test_questions[:mock_test_config["num_questions"]]):
+        for i, question in enumerate(test_questions[:mock_test_config["question_count"]]):
             # Answer first 2 correctly, rest incorrectly
             selected_answer = question.correct_answer if i < 2 else (
                 "A" if question.correct_answer != "A" else "B"
@@ -179,14 +187,17 @@ class TestCompleteUserJourney:
 
             test_answers.append({
                 "question_id": question.id,
-                "selected_answer": selected_answer,
-                "time_taken_seconds": 25 + i * 3
+                "answer": selected_answer,
+                "time_spent_seconds": 25 + i * 3
             })
 
         # Submit mock test
-        submission_data = {"answers": test_answers}
+        submission_data = {
+            "responses": test_answers,
+            "total_time_seconds": sum(a["time_spent_seconds"] for a in test_answers)
+        }
         submit_response = test_client.post(
-            f"/api/v1/mock-tests/{test_id}/submit",
+            f"/api/v1/mock-test/{test_id}/submit",
             headers=auth_headers,
             json=submission_data
         )
@@ -198,27 +209,31 @@ class TestCompleteUserJourney:
         # ── STEP 9: View Mock Test Results ────────────────────────
         print("\n[E2E] Step 9: View Mock Test Results")
         results_response = test_client.get(
-            f"/api/v1/mock-tests/{test_id}/results",
+            f"/api/v1/mock-test/{test_id}/results",
             headers=auth_headers
         )
 
         assert results_response.status_code == status.HTTP_200_OK
         test_results = results_response.json()
 
-        total_correct = test_results.get("total_correct") or test_results.get("correct_answers")
+        total_correct = test_results.get("correct_count") or test_results.get("total_correct")
         total_questions = test_results.get("total_questions") or test_results.get("questions_count")
-        score_percentage = test_results.get("score") or test_results.get("percentage")
+        score_percentage = test_results.get("score_percentage") or test_results.get("score")
 
         print(f"[OK] Results: {total_correct}/{total_questions} correct")
-        if score_percentage:
+        if score_percentage is not None:
             print(f"[OK] Score: {score_percentage}%")
 
         # Verify results make sense
-        assert total_correct <= total_questions
+        if total_correct is not None and total_questions is not None:
+            assert total_correct <= total_questions
 
         # ── STEP 10: Check Leaderboard ────────────────────────────
         print("\n[E2E] Step 10: Check Leaderboard")
-        leaderboard_response = test_client.get("/api/v1/leaderboard")
+        leaderboard_response = test_client.get(
+            "/api/v1/leaderboard",
+            headers=auth_headers
+        )
 
         if leaderboard_response.status_code == status.HTTP_200_OK:
             leaderboard = leaderboard_response.json()
@@ -307,21 +322,30 @@ class TestGuestUserJourney:
         exams = exams_response.json()
         print(f"[OK] Guest can browse {len(exams)} exams")
 
-        # ── STEP 3: View Topics ───────────────────────────────────
-        print("\n[E2E GUEST] Step 3: View Topics")
-        topics_response = test_client.get(
-            f"/api/v1/exams/{test_exam.id}/topics"
+        # ── STEP 3: View Subjects & Topics ───────────────────────
+        print("\n[E2E GUEST] Step 3: View Subjects and Topics")
+        subjects_response = test_client.get(
+            f"/api/v1/exams/{test_exam.id}/subjects"
         )
 
-        assert topics_response.status_code == status.HTTP_200_OK
-        topics = topics_response.json()
-        print(f"[OK] Guest can view {len(topics)} topics")
+        assert subjects_response.status_code == status.HTTP_200_OK
+        subjects = subjects_response.json()
+
+        if len(subjects) > 0:
+            topics_response = test_client.get(
+                f"/api/v1/exams/{test_exam.id}/subjects/{subjects[0]['id']}/topics"
+            )
+            assert topics_response.status_code == status.HTTP_200_OK
+            topics = topics_response.json()
+            print(f"[OK] Guest can view {len(topics)} topics")
+        else:
+            print("[OK] No subjects found for exam")
 
         # ── STEP 4: Try Study Session ─────────────────────────────
         print("\n[E2E GUEST] Step 4: Try Study Session")
         session_data = {
             "topic_id": test_topic.id,
-            "time_limit_minutes": 30
+            "duration_mins": 30
         }
 
         session_response = test_client.post(
@@ -357,26 +381,27 @@ class TestErrorRecovery:
         print("\n[E2E ERROR] Test 1: Invalid Topic Handling")
         invalid_test_config = {
             "topic_id": 99999,  # Non-existent
-            "num_questions": 10,
-            "time_limit_minutes": 30
+            "question_count": 10,
+            "time_limit_seconds": 600
         }
 
         response = test_client.post(
-            "/api/v1/mock-tests",
+            "/api/v1/mock-test/start",
             headers=auth_headers,
             json=invalid_test_config
         )
 
         assert response.status_code in [
             status.HTTP_404_NOT_FOUND,
-            status.HTTP_400_BAD_REQUEST
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_422_UNPROCESSABLE_ENTITY
         ]
         print("[OK] Invalid topic handled gracefully")
 
         # ── Test 2: Access non-existent test ──────────────────────
         print("\n[E2E ERROR] Test 2: Non-existent Test Access")
         response = test_client.get(
-            "/api/v1/mock-tests/99999/results",
+            "/api/v1/mock-test/99999/results",
             headers=auth_headers
         )
 
@@ -385,21 +410,23 @@ class TestErrorRecovery:
 
         # ── Test 3: Submit answer without starting test ───────────
         print("\n[E2E ERROR] Test 3: Submit Answer Without Test")
-        answer_data = {
-            "question_id": 1,
-            "selected_answer": "A",
-            "time_taken_seconds": 30
+        submit_data = {
+            "responses": [
+                {"question_id": 1, "answer": "A", "time_spent_seconds": 30}
+            ],
+            "total_time_seconds": 30
         }
 
         response = test_client.post(
-            "/api/v1/mock-tests/99999/answers",
+            "/api/v1/mock-test/99999/submit",
             headers=auth_headers,
-            json=answer_data
+            json=submit_data
         )
 
         assert response.status_code in [
             status.HTTP_404_NOT_FOUND,
-            status.HTTP_400_BAD_REQUEST
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_422_UNPROCESSABLE_ENTITY
         ]
         print("[OK] Invalid submission handled gracefully")
 

@@ -9,8 +9,8 @@ import { Loader2 } from 'lucide-react';
 export default function Login() {
     const router = useRouter();
     const { setUser, setToken, hasHydrated, token } = useStore();
-    const [email, setEmail] = useState('test@studypulse.com');
-    const [password, setPassword] = useState('password123');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [mounted, setMounted] = useState(false);
     const [error, setError] = useState('');
@@ -23,7 +23,8 @@ export default function Login() {
         }
 
         // Ping backend
-        fetch('http://localhost:8000/health')
+        const healthUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1').replace('/api/v1', '/health');
+        fetch(healthUrl)
             .then(res => res.ok ? setBackendStatus('up') : setBackendStatus('down'))
             .catch(() => setBackendStatus('down'));
     }, [hasHydrated, token, router]);
@@ -43,8 +44,10 @@ export default function Login() {
             setUser(response.data.user);
 
             router.push('/');
-        } catch (err: any) {
-            setError(err.response?.data?.detail || 'Login failed. Please try again.');
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : 'Login failed. Please try again.';
+            const axiosError = err as { response?: { data?: { detail?: string } } };
+            setError(axiosError.response?.data?.detail || errorMessage);
         } finally {
             setLoading(false);
         }

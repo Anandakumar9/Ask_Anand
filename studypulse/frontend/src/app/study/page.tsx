@@ -35,7 +35,7 @@ function StudyTimerContent() {
     }, [topicId, router]);
 
     useEffect(() => {
-        let interval: any = null;
+        let interval: ReturnType<typeof setInterval> | null = null;
         if (isActive && timeLeft > 0) {
             interval = setInterval(() => {
                 setTimeLeft((time) => time - 1);

@@ -279,7 +279,7 @@ class NEETQuestionScraper:
                     if correct_idx:
                         try:
                             correct_answer = chr(65 + int(correct_idx))
-                        except:
+                        except (ValueError, TypeError):
                             pass
 
                 if not correct_answer:

@@ -310,7 +310,7 @@ async def get_test_results(
         if isinstance(opts, str):
             try:
                 opts = json.loads(opts)
-            except Exception:
+            except (json.JSONDecodeError, TypeError, ValueError):
                 opts = {}
         question_results.append(
             {

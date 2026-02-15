@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8000/api/v1';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 const api = axios.create({
     baseURL: API_URL,
@@ -32,7 +32,7 @@ export const authApi = {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     }),
     getMe: () => api.get('/auth/me'),
-    updateProfile: (data: any) => api.patch('/auth/me', data),
+    updateProfile: (data: Record<string, unknown>) => api.patch('/auth/me', data),
 };
 
 export const examApi = {
@@ -52,7 +52,7 @@ export const studyApi = {
 export const testApi = {
     startTest: (testData: { topic_id: number; session_id?: number; question_count?: number }) =>
         api.post('/mock-test/start', testData),
-    submitTest: (testId: number, responses: any, totalTime: number) =>
+    submitTest: (testId: number, responses: Array<{ question_id: number; answer: string | null; time_spent_seconds: number }>, totalTime: number) =>
         api.post(`/mock-test/${testId}/submit`, { responses, total_time_seconds: totalTime }),
     getResults: (testId: number) => api.get(`/mock-test/${testId}/results`),
 };

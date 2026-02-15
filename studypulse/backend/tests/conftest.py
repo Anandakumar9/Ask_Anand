@@ -20,8 +20,7 @@ from app.core.database import Base, get_db
 from app.core.security import create_access_token, get_password_hash
 from app.main import app
 from app.models.user import User
-from app.models.exam import Exam
-from app.models.topic import Topic
+from app.models.exam import Exam, Subject, Topic
 from app.models.question import Question
 
 
@@ -173,13 +172,10 @@ async def test_user(test_db: AsyncSession) -> User:
     """Create a test user in the database."""
     user = User(
         email="test@example.com",
-        username="testuser",
-        full_name="Test User",
+        name="Test User",
         hashed_password=get_password_hash("testpassword123"),
         is_active=True,
-        is_superuser=False,
-        total_stars=10,
-        current_streak=3
+        total_stars=10
     )
     test_db.add(user)
     await test_db.commit()
@@ -192,11 +188,9 @@ async def admin_user(test_db: AsyncSession) -> User:
     """Create an admin user in the database."""
     user = User(
         email="admin@example.com",
-        username="admin",
-        full_name="Admin User",
+        name="Admin User",
         hashed_password=get_password_hash("adminpassword123"),
         is_active=True,
-        is_superuser=True,
         total_stars=100
     )
     test_db.add(user)
@@ -208,13 +202,13 @@ async def admin_user(test_db: AsyncSession) -> User:
 @pytest.fixture
 def test_user_token(test_user: User) -> str:
     """Generate a JWT token for the test user."""
-    return create_access_token(data={"sub": test_user.email})
+    return create_access_token(data={"sub": str(test_user.id)})
 
 
 @pytest.fixture
 def admin_user_token(admin_user: User) -> str:
     """Generate a JWT token for the admin user."""
-    return create_access_token(data={"sub": admin_user.email})
+    return create_access_token(data={"sub": str(admin_user.id)})
 
 
 @pytest.fixture
@@ -248,14 +242,29 @@ async def test_exam(test_db: AsyncSession) -> Exam:
 
 
 @pytest.fixture
-async def test_topic(test_db: AsyncSession, test_exam: Exam) -> Topic:
+async def test_subject(test_db: AsyncSession, test_exam: Exam) -> Subject:
+    """Create a test subject."""
+    subject = Subject(
+        exam_id=test_exam.id,
+        name="General Studies",
+        description="General Studies for UPSC",
+        is_active=True
+    )
+    test_db.add(subject)
+    await test_db.commit()
+    await test_db.refresh(subject)
+    return subject
+
+
+@pytest.fixture
+async def test_topic(test_db: AsyncSession, test_subject: Subject) -> Topic:
     """Create a test topic."""
     topic = Topic(
-        exam_id=test_exam.id,
+        subject_id=test_subject.id,
         name="Indian History",
         description="Ancient and Medieval Indian History",
-        difficulty="medium",
-        estimated_time_minutes=30
+        difficulty_level="medium",
+        estimated_study_mins=30
     )
     test_db.add(topic)
     await test_db.commit()

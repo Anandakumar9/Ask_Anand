@@ -1,6 +1,6 @@
 """API endpoints for question management and import operations."""
 import logging
-from typing import List, Optional
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Body
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,21 +28,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/questions", tags=["Questions"])
 
 
-# Helper to make auth optional for now (can restrict later)
-async def get_current_user_optional(
-    db: AsyncSession = Depends(get_db),
-) -> Optional[User]:
-    """Optional authentication - returns None if not authenticated."""
-    # For now, allow unauthenticated access to import endpoints
-    # In production, you can restrict this to admin users only
-    return None
-
-
 @router.post("/import/single", response_model=ImportResponse)
 async def import_single_question(
     question: QuestionImport,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_optional),  # Allow for now, can restrict to admin later
+    current_user: User = Depends(get_current_user),
 ):
     """Import a single question manually.
 
@@ -101,7 +91,7 @@ async def import_single_question(
 async def import_bulk_questions(
     data: BulkQuestionImport,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_optional),
+    current_user: User = Depends(get_current_user),
 ):
     """Import multiple questions at once.
 
@@ -149,7 +139,7 @@ async def import_bulk_questions(
 async def import_csv_questions(
     data: CSVImportRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_optional),
+    current_user: User = Depends(get_current_user),
 ):
     """Import questions from CSV data.
 
@@ -196,7 +186,7 @@ async def import_csv_questions(
 async def get_import_stats(
     topic_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_optional),
+    current_user: User = Depends(get_current_user),
 ):
     """Get import statistics for a topic.
 
@@ -219,7 +209,7 @@ async def import_pdf_questions(
     target_count: int = Form(10, description="Number of questions to generate"),
     difficulty: str = Form("medium", description="Target difficulty: easy/medium/hard"),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_optional),
+    current_user: User = Depends(get_current_user),
 ):
     """Extract and import questions from a PDF textbook using AI.
 
@@ -267,11 +257,17 @@ async def import_pdf_questions(
 
     start_time = time.time()
 
-    # Validate file type
+    # Validate file type (extension and MIME type)
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="File must be a PDF (.pdf extension)",
+        )
+
+    if file.content_type and file.content_type != "application/pdf":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File content type must be application/pdf",
         )
 
     # Verify topic exists
@@ -346,7 +342,7 @@ async def import_pdf_questions(
         pdf_info = pdf_extractor.get_pdf_info(pdf_content)
         total_time = time.time() - start_time
 
-        result_dict = result.dict()
+        result_dict = result.model_dump()
         result_dict["metadata"] = {
             "pdf_filename": file.filename,
             "pdf_pages": pdf_info.get("page_count", 0),
@@ -387,7 +383,7 @@ class WebScrapingRequest(BaseModel):
 async def import_from_web_scraping(
     request: WebScrapingRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_optional),
+    current_user: User = Depends(get_current_user),
 ):
     """Scrape questions from UPSC/NEET websites and import to database.
 
@@ -487,7 +483,7 @@ async def import_from_web_scraping(
 
         # Add metadata
         total_time = time.time() - start_time
-        result_dict = result.dict()
+        result_dict = result.model_dump()
         result_dict["metadata"] = {
             "urls_scraped": len(request.urls),
             "exam_type": request.exam_type.upper(),

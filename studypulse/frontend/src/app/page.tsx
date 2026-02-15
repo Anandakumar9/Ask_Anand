@@ -6,10 +6,38 @@ import { useRouter } from 'next/navigation';
 import { useStore } from '@/store/useStore';
 import { dashboardApi } from '@/services/api';
 
+interface DashboardActivity {
+    type: string;
+    title: string;
+    timestamp: string;
+    score?: number;
+    duration_mins?: number;
+    star_earned?: boolean;
+}
+
+interface ContinueTopic {
+    topic_id: number;
+    topic_name: string;
+    subject_name: string;
+    progress: number;
+}
+
+interface DashboardStats {
+    total_stars: number;
+    study_streak: number;
+    average_score: number;
+}
+
+interface DashboardData {
+    stats: DashboardStats;
+    recent_activity: DashboardActivity[];
+    continue_topic: ContinueTopic | null;
+}
+
 export default function Home() {
   const router = useRouter();
   const { user, token, logout, hasHydrated } = useStore();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
@@ -200,7 +228,7 @@ export default function Home() {
           </div>
           <div className="space-y-3">
             {recent_activity.length > 0 ? (
-              recent_activity.map((activity: any, i: number) => (
+              recent_activity.map((activity: DashboardActivity, i: number) => (
                 <div key={i} className="card flex items-center p-3">
                   <div className={`h-10 w-10 rounded-full flex items-center justify-center mr-4 ${activity.type === 'test' ? 'bg-instacart-green-light text-instacart-green' : 'bg-blue-50 text-blue-500'
                     }`}>

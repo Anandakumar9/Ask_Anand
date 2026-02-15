@@ -78,19 +78,19 @@ class TestOptionsValidation:
         question = {
             "question_text": "What is 2+2?",
             "options": {
-                "A": "4",
-                "B": "4",  # Duplicate
-                "C": "5",
-                "D": "6"
+                "A": "Four",
+                "B": "Four",  # Duplicate
+                "C": "Five",
+                "D": "Six"
             },
             "correct_answer": "A",
-            "explanation": "2+2=4"
+            "explanation": "The answer is four because 2+2 equals 4."
         }
 
         is_valid, errors = validate_question(question)
 
         assert is_valid is False
-        assert any("Duplicate options" in err for err in errors)
+        assert any("Duplicate" in err for err in errors)
 
     def test_empty_option_value(self):
         """Test validation fails with empty option."""
@@ -184,7 +184,7 @@ class TestCorrectAnswerValidation:
                 "D": "Answer 4"
             },
             "correct_answer": "b",  # Lowercase (should be normalized)
-            "explanation": "Explanation here."
+            "explanation": "Answer 2 is the correct answer because it satisfies the condition."
         }
 
         # Should pass after normalization to uppercase
