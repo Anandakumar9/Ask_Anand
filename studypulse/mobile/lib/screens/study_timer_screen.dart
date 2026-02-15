@@ -69,7 +69,7 @@ class _StudyTimerScreenState extends State<StudyTimerScreen> {
   Future<void> _onSessionComplete() async {
     final app = context.read<AppProvider>();
     final actualMins =
-        _selectedDuration - (_remainingSeconds / 60).ceil();
+        ((_selectedDuration * 60 - _remainingSeconds) / 60).ceil();
     await app.completeStudySession(actualMins.clamp(1, _selectedDuration));
 
     if (!mounted) return;
