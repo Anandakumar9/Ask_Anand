@@ -146,7 +146,7 @@ class TestQuestionDelivery:
             assert "question_text" in data or "question" in data
             assert "options" in data
 
-    async def test_submit_answer(
+    async def test_check_question_status(
         self, test_client, auth_headers, test_topic, test_questions
     ):
         """Test checking question status for a study session."""

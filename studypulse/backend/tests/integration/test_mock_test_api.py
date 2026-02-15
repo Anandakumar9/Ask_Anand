@@ -358,7 +358,7 @@ class TestMockTestHistory:
         assert test_id is not None
         assert "total_questions" in data
 
-    async def test_delete_mock_test(
+    async def test_get_mock_test_history(
         self, test_client, auth_headers, test_topic, test_questions
     ):
         """Test that mock test history can be retrieved after creation."""
