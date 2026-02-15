@@ -93,7 +93,7 @@ jobs:
 
       - name: Run Tests with Coverage
         run: |
-          pytest tests/ \
+          pytest tests/unit tests/integration tests/e2e \
             --cov=app \
             --cov-report=term-missing \
             --cov-report=html:htmlcov \
