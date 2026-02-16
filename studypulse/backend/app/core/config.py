@@ -21,6 +21,14 @@ class Settings(BaseSettings):
     DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "10"))
     DB_POOL_TIMEOUT: int = int(os.getenv("DB_POOL_TIMEOUT", "30"))
 
+    def __init__(self, **kwargs):
+        """Initialize settings and fix DATABASE_URL for asyncpg if needed."""
+        super().__init__(**kwargs)
+
+        # Railway provides postgresql:// but SQLAlchemy async needs postgresql+asyncpg://
+        if self.DATABASE_URL.startswith("postgresql://"):
+            self.DATABASE_URL = self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+
     # ── Authentication ────────────────────────────────────────
     SECRET_KEY: str = "change-this-in-production-use-a-real-secret-key-min-32-chars"
     ALGORITHM: str = "HS256"
