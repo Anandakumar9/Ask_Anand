@@ -27,33 +27,33 @@ class Settings(BaseSettings):
         super().__init__(**kwargs)
 
         # CRITICAL DEBUG: Print what DATABASE_URL we received (Railway debugging)
-        print(f"🔍 [CONFIG DEBUG] DATABASE_URL received: {self.DATABASE_URL[:50]}..." if len(self.DATABASE_URL) > 50 else f"🔍 [CONFIG DEBUG] DATABASE_URL received: '{self.DATABASE_URL}'")
-        print(f"🔍 [CONFIG DEBUG] DATABASE_URL length: {len(self.DATABASE_URL)}")
-        print(f"🔍 [CONFIG DEBUG] DATABASE_URL type: {type(self.DATABASE_URL)}")
+        print(f"[DEBUG] DATABASE_URL received: {self.DATABASE_URL[:50]}..." if len(self.DATABASE_URL) > 50 else f"[DEBUG] DATABASE_URL received: '{self.DATABASE_URL}'")
+        print(f"[DEBUG] DATABASE_URL length: {len(self.DATABASE_URL)}")
+        print(f"[DEBUG] DATABASE_URL type: {type(self.DATABASE_URL)}")
 
         # Railway provides postgresql:// but SQLAlchemy async needs postgresql+asyncpg://
         if self.DATABASE_URL.startswith("postgresql://"):
-            print(f"✅ [CONFIG DEBUG] Converting postgresql:// to postgresql+asyncpg://")
+            print(f"[OK] Converting postgresql:// to postgresql+asyncpg://")
             # Convert to asyncpg dialect
             self.DATABASE_URL = self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
         # Additional check for Railway's internal URLs (postgres:// scheme)
         elif self.DATABASE_URL.startswith("postgres://"):
-            print(f"✅ [CONFIG DEBUG] Converting postgres:// to postgresql+asyncpg://")
+            print(f"[OK] Converting postgres:// to postgresql+asyncpg://")
             # Convert postgres:// to postgresql+asyncpg://
             self.DATABASE_URL = self.DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
 
         # Print final DATABASE_URL
-        print(f"🔍 [CONFIG DEBUG] DATABASE_URL after conversion: {self.DATABASE_URL[:50]}..." if len(self.DATABASE_URL) > 50 else f"🔍 [CONFIG DEBUG] DATABASE_URL after conversion: '{self.DATABASE_URL}'")
+        print(f"[DEBUG] DATABASE_URL after conversion: {self.DATABASE_URL[:50]}..." if len(self.DATABASE_URL) > 50 else f"[DEBUG] DATABASE_URL after conversion: '{self.DATABASE_URL}'")
 
         # Validate the URL can be parsed (debug logging)
         if not self.DATABASE_URL.startswith("sqlite"):
             try:
                 parsed = urlparse(self.DATABASE_URL)
-                print(f"✓ Database URL scheme: {parsed.scheme}")
-                print(f"✓ Database host: {parsed.hostname}")
+                print(f"[OK] Database URL scheme: {parsed.scheme}")
+                print(f"[OK] Database host: {parsed.hostname}")
             except Exception as e:
-                print(f"⚠️  Warning: Could not validate DATABASE_URL: {e}")
+                print(f"[WARNING] Could not validate DATABASE_URL: {e}")
                 print(f"   URL scheme: {self.DATABASE_URL.split('://')[0] if '://' in self.DATABASE_URL else 'unknown'}")
 
     # ── Authentication ────────────────────────────────────────
@@ -158,11 +158,11 @@ class Settings(BaseSettings):
 
         # Print warnings
         for warning in warnings:
-            print(f"⚠️  WARNING: {warning}")
+            print(f"[WARNING] {warning}")
 
         # Raise errors
         if errors:
-            error_msg = "\n".join([f"❌ {error}" for error in errors])
+            error_msg = "\n".join([f"[ERROR] {error}" for error in errors])
             raise ValueError(f"Security validation failed:\n{error_msg}")
 
     @property

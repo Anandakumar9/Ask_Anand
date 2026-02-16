@@ -8,11 +8,11 @@ import sys
 # RAILWAY DEPLOYMENT MARKER: 2026-02-16-15:35-UTC - POSTGRES FIX
 # This marker proves Railway is deploying the latest code with PostgreSQL support
 print("="*80)
-print("🚂 RAILWAY DEPLOYMENT CHECK - POSTGRES ENABLED")
+print("[RAILWAY] DEPLOYMENT CHECK - POSTGRES ENABLED")
 print("="*80)
-print(f"✅ Code Version: 2026-02-16-15:35-UTC")
-print(f"✅ PostgreSQL Support: ENABLED")
-print(f"✅ Using getattr() for DB pool settings")
+print(f"[OK] Code Version: 2026-02-16-15:35-UTC")
+print(f"[OK] PostgreSQL Support: ENABLED")
+print(f"[OK] Using getattr() for DB pool settings")
 print("="*80)
 
 logger = logging.getLogger(__name__)
@@ -48,12 +48,12 @@ elif is_postgres:
 # Create engine with error handling
 try:
     engine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
-    logger.info(f"✓ Database engine created successfully (type: {'SQLite' if is_sqlite else 'PostgreSQL'})")
+    logger.info(f"[OK] Database engine created successfully (type: {'SQLite' if is_sqlite else 'PostgreSQL'})")
 except Exception as e:
     logger.error(f"Failed to create database engine!")
     logger.error(f"DATABASE_URL scheme: {settings.DATABASE_URL.split('://')[0] if '://' in settings.DATABASE_URL else 'unknown'}")
     logger.error(f"Error: {str(e)}")
-    sys.stderr.write(f"\n❌ DATABASE CONNECTION ERROR:\n")
+    sys.stderr.write(f"\n[ERROR] DATABASE CONNECTION ERROR:\n")
     sys.stderr.write(f"   URL Scheme: {settings.DATABASE_URL.split('://')[0] if '://' in settings.DATABASE_URL else 'INVALID'}\n")
     sys.stderr.write(f"   Error: {str(e)}\n")
     sys.stderr.write(f"\n   Possible fixes:\n")
