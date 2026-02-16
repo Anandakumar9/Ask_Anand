@@ -5,14 +5,14 @@ from .config import settings
 import logging
 import sys
 
-# RAILWAY DEPLOYMENT MARKER: 2026-02-16-14:45-UTC - COMMIT 0de7dcb
-# This marker proves Railway is deploying the latest code
+# RAILWAY DEPLOYMENT MARKER: 2026-02-16-15:35-UTC - POSTGRES FIX
+# This marker proves Railway is deploying the latest code with PostgreSQL support
 print("="*80)
-print("🚂 RAILWAY DEPLOYMENT CHECK")
+print("🚂 RAILWAY DEPLOYMENT CHECK - POSTGRES ENABLED")
 print("="*80)
-print(f"✅ Code Version: 2026-02-16-14:45-UTC")
-print(f"✅ Commit: 0de7dcb")
-print(f"✅ Using getattr() for backward compatibility")
+print(f"✅ Code Version: 2026-02-16-15:35-UTC")
+print(f"✅ PostgreSQL Support: ENABLED")
+print(f"✅ Using getattr() for DB pool settings")
 print("="*80)
 
 logger = logging.getLogger(__name__)
