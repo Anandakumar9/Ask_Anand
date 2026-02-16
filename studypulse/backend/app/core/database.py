@@ -5,14 +5,15 @@ from .config import settings
 import logging
 import sys
 
-# RAILWAY DEPLOYMENT MARKER: 2026-02-16-15:35-UTC - POSTGRES FIX
-# This marker proves Railway is deploying the latest code with PostgreSQL support
+# RAILWAY DEPLOYMENT MARKER: 2026-02-16T17:30:00Z - CACHE BUST v2
+# This marker proves Railway is deploying the latest code with getattr() fixes
 print("="*80)
-print("[RAILWAY] DEPLOYMENT CHECK - POSTGRES ENABLED")
+print("[RAILWAY] DEPLOYMENT CHECK v2 - CACHE BUSTED")
 print("="*80)
-print(f"[OK] Code Version: 2026-02-16-15:35-UTC")
-print(f"[OK] PostgreSQL Support: ENABLED")
-print(f"[OK] Using getattr() for DB pool settings")
+print(f"[OK] Code Version: 2026-02-16T17:30:00Z")
+print(f"[OK] PostgreSQL Support: ENABLED with getattr()")
+print(f"[OK] Fixed AttributeError for DB_POOL_SIZE")
+print(f"[OK] All settings use safe getattr() calls")
 print("="*80)
 
 logger = logging.getLogger(__name__)

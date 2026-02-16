@@ -1,10 +1,23 @@
 [build]
 builder = "NIXPACKS"
+watchPatterns = ["app/**/*.py", "requirements-railway.txt"]
+
+[build.nixpacksPlan]
+# Force fresh installation - no cache
+nixpacksVersion = "1.*"
 
 [build.nixpacksPlan.phases.install]
-cmds = ["pip install -r requirements-railway.txt"]
+cmds = [
+    "echo '=== CLEARING ALL PYTHON CACHE ==='",
+    "rm -rf /app/.venv || true",
+    "rm -rf __pycache__ **/__pycache__ || true",
+    "find . -type f -name '*.pyc' -delete || true",
+    "find . -type d -name '.pytest_cache' -exec rm -rf {} + || true",
+    "echo '=== INSTALLING FRESH DEPENDENCIES ==='",
+    "pip install --no-cache-dir -r requirements-railway.txt"
+]
 
 [deploy]
-startCommand = "find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true; find . -type f -name '*.pyc' -delete 2>/dev/null || true; python -B -c 'print(\"Cache cleared\")'; uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+startCommand = "python -B -c 'import sys; print(f\"Python: {sys.version}\"); print(f\"Path: {sys.path}\")' && find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true && find . -type f -name '*.pyc' -delete 2>/dev/null || true && python -B -c 'print(\"Cache cleared - starting app\")' && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
