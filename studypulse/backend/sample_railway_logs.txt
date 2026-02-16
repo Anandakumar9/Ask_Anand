@@ -1,0 +1,22 @@
+2026-02-16T10:15:23.123Z INFO Starting application...
+2026-02-16T10:15:24.456Z INFO 🚂 RAILWAY DEPLOYMENT CHECK - Deployment ID: abc123
+2026-02-16T10:15:25.789Z INFO ✅ Python cache cleared successfully
+2026-02-16T10:15:26.012Z DEBUG Reading DATABASE_URL from environment
+2026-02-16T10:15:26.345Z INFO DATABASE_URL: postgresql://user:pass@postgres.railway.internal:5432/railway
+2026-02-16T10:15:27.678Z INFO Connecting to database...
+2026-02-16T10:15:28.901Z INFO Database engine created successfully
+2026-02-16T10:15:29.234Z INFO Tables created successfully
+2026-02-16T10:15:30.567Z INFO Application ready to accept connections
+2026-02-16T10:16:15.890Z ERROR AttributeError: 'NoneType' object has no attribute 'execute'
+2026-02-16T10:16:16.123Z ERROR Failed to execute query
+2026-02-16T10:16:17.456Z INFO Attempting to reconnect to database
+2026-02-16T10:16:18.789Z INFO DATABASE_URL detected in environment
+2026-02-16T10:16:19.012Z INFO Database engine created successfully
+2026-02-16T10:16:20.345Z INFO Connection restored
+2026-02-16T10:17:30.678Z WARNING Database query took longer than expected
+2026-02-16T10:18:45.901Z INFO 🚂 RAILWAY DEPLOYMENT CHECK - New deployment: def456
+2026-02-16T10:18:46.234Z INFO ✅ Python cache cleared successfully
+2026-02-16T10:18:47.567Z INFO Starting database initialization
+2026-02-16T10:18:48.890Z INFO DATABASE_URL found: postgresql://usr:***@railway-db:5432/prod
+2026-02-16T10:18:49.123Z INFO Database engine created successfully
+2026-02-16T10:18:50.456Z INFO Application started successfully
