@@ -1,13 +1,10 @@
-# Railway Configuration for StudyPulse Backend
-# Simplified for reliable deployment
-
 [build]
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile.railway"
+builder = "NIXPACKS"
+
+[build.nixpacksPlan.phases.install]
+cmds = ["pip install -r requirements-railway.txt"]
 
 [deploy]
-startCommand = "gunicorn app.main:app --workers 2 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 120"
-healthcheckPath = "/health"
-healthcheckTimeout = 100
+startCommand = "find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true; uvicorn app.main:app --host 0.0.0.0 --port $PORT"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
