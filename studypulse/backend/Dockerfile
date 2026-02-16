@@ -1,44 +1,48 @@
-# studypulse/backend/Dockerfile
-# Production-ready Dockerfile with security hardening
+# Railway-optimized Dockerfile for StudyPulse Backend
+# Minimal, fast build with essential dependencies only
 
 FROM python:3.11-slim
 
 # Security: Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install minimal system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     libffi-dev \
     libssl-dev \
-    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy and install dependencies
-COPY requirements.txt .
+# Copy and install Python dependencies (use Railway-specific requirements)
+COPY requirements-railway.txt requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir gunicorn
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY --chown=appuser:appuser . .
 
-# Create data directories
+# Create necessary directories
 RUN mkdir -p /app/data /app/logs && \
     chown -R appuser:appuser /app/data /app/logs
 
 # Switch to non-root user
 USER appuser
 
-# Expose port
+# Expose port (Railway sets $PORT dynamically)
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
-
-# Use gunicorn with uvicorn workers for production
-CMD ["gunicorn", "app.main:app", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--timeout", "300"]
+# Start with cache clearing + gunicorn + uvicorn workers
+CMD find /app -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true; \
+    find /app -type f -name '*.pyc' -delete 2>/dev/null || true; \
+    echo "✅ Python cache cleared"; \
+    exec gunicorn app.main:app \
+    --workers 2 \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --bind 0.0.0.0:${PORT:-8000} \
+    --timeout 120 \
+    --keep-alive 5 \
+    --access-logfile - \
+    --error-logfile -
