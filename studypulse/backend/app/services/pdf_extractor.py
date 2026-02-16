@@ -1,9 +1,9 @@
-"""PDF text extraction service using PyPDF2 and pdfplumber.
+"""PDF text extraction service using pypdf and pdfplumber.
 
 Extracts text content from PDF files for question generation.
 Uses multiple extraction strategies for best results:
   1. pdfplumber (best for tables and structured content)
-  2. PyPDF2 (fallback for simple text)
+  2. pypdf (fallback for simple text)
 """
 import io
 import logging
@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Optional, List, Dict
 
 import pdfplumber
-from PyPDF2 import PdfReader
+from pypdf import PdfReader
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +36,10 @@ class PDFExtractor:
                 logger.info(f"Extracted {len(text)} chars from {filename} using pdfplumber")
                 return text
 
-            # Fallback to PyPDF2
+            # Fallback to pypdf
             text = self._extract_with_pypdf2(pdf_file)
             if text and len(text.strip()) > 100:
-                logger.info(f"Extracted {len(text)} chars from {filename} using PyPDF2")
+                logger.info(f"Extracted {len(text)} chars from {filename} using pypdf")
                 return text
 
             logger.warning(f"No text extracted from {filename}")
@@ -101,7 +101,7 @@ class PDFExtractor:
             return None
 
     def _extract_with_pypdf2(self, pdf_file: bytes) -> Optional[str]:
-        """Extract text using PyPDF2 (fallback)."""
+        """Extract text using pypdf (fallback)."""
         try:
             reader = PdfReader(io.BytesIO(pdf_file))
             text_parts = []
@@ -115,7 +115,7 @@ class PDFExtractor:
             return self._clean_text(full_text)
 
         except Exception as e:
-            logger.debug(f"PyPDF2 extraction failed: {e}")
+            logger.debug(f"pypdf extraction failed: {e}")
             return None
 
     @staticmethod

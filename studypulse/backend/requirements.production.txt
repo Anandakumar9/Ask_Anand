@@ -56,7 +56,7 @@ sentry-sdk[fastapi]>=1.40.0  # Error tracking and APM
 python-dotenv>=1.0.0
 
 # ============ PDF PROCESSING ============
-pypdf2>=3.0.0
+pypdf>=3.0.0
 pdfplumber>=0.11.0
 reportlab>=4.0.0
 

@@ -37,7 +37,7 @@ python-json-logger>=2.0.7
 python-dotenv>=1.0.0
 
 # PDF Processing
-pypdf2>=3.0.0
+pypdf>=3.0.0
 pdfplumber>=0.11.0
 reportlab>=4.0.0
 
@@ -83,3 +83,20 @@ faker>=19.0.0  # For generating test data
 
 # Database Testing
 pytest-postgresql>=5.0.0  # Optional: for PostgreSQL testing
+
+# Production server
+gunicorn==21.2.0
+uvicorn[standard]>=0.27.0
+
+# Supabase integration
+supabase==2.3.0
+
+# Rate limiting
+slowapi==0.1.9
+
+# Monitoring
+sentry-sdk[fastapi]==1.40.0
+
+# Production database
+psycopg2-binary==2.9.9
+asyncpg==0.29.0

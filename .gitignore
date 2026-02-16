@@ -70,3 +70,6 @@ studypulse_20*.json
 errors_20*.json
 tmpclaude-*-cwd
 *.cwd
+
+# Build artifacts
+.installed_hash
