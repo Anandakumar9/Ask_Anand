@@ -9,7 +9,12 @@ from app.core.logging_config import setup_logging
 from app.core.cache import cache
 from app.core.database import init_db
 from app.core.ollama import ollama_client
-from app.rag.vector_store import vector_store
+
+# Dynamic vector store selection (Qdrant or PageIndex)
+if settings.USE_PAGEINDEX:
+    from app.rag.pageindex_adapter import pageindex_store as vector_store
+else:
+    from app.rag.vector_store import vector_store
 
 # All routers use SQLAlchemy (single consistent database)
 from app.api import (

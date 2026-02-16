@@ -45,7 +45,7 @@ class PageIndexStore:
         self._current_count = 0
         self._max_elements = 100000  # Maximum vectors (can be increased)
         self._available = False
-        self._storage_path = Path("./data/pageindex")
+        self._storage_path = Path(settings.PAGEINDEX_STORAGE_PATH)
         self._storage_path.mkdir(parents=True, exist_ok=True)
 
     @classmethod
