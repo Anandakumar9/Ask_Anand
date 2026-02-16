@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
-    logger.info(f"Starting {settings.APP_NAME} API...")
+    logger.info(f"Starting {settings.APP_NAME} API... [Railway Deploy]")
     logger.info(f"Database: {settings.DATABASE_URL}")
     logger.info(f"Ollama: {settings.OLLAMA_MODEL}")
     logger.info(f"RAG Pipeline: {'Enabled' if settings.RAG_ENABLED else 'Disabled'}")
