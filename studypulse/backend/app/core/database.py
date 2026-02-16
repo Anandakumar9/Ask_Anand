@@ -5,6 +5,8 @@ from .config import settings
 import logging
 import sys
 
+# Railway deployment: 2026-02-16
+
 logger = logging.getLogger(__name__)
 
 # Determine database type
