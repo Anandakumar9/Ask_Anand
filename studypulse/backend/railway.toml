@@ -1,6 +1,6 @@
 [build]
 builder = "NIXPACKS"
-watchPatterns = ["app/**/*.py", "requirements-railway.txt"]
+watchPatterns = ["app/**/*.py", "requirements-railway.txt", ".railway-rebuild-trigger"]
 
 [build.nixpacksPlan]
 # Force fresh installation - no cache
@@ -8,13 +8,16 @@ nixpacksVersion = "1.*"
 
 [build.nixpacksPlan.phases.install]
 cmds = [
+    "echo '=== RAILWAY REBUILD $(date) ==='",
     "echo '=== CLEARING ALL PYTHON CACHE ==='",
     "rm -rf /app/.venv || true",
     "rm -rf __pycache__ **/__pycache__ || true",
     "find . -type f -name '*.pyc' -delete || true",
     "find . -type d -name '.pytest_cache' -exec rm -rf {} + || true",
     "echo '=== INSTALLING FRESH DEPENDENCIES ==='",
-    "pip install --no-cache-dir -r requirements-railway.txt"
+    "pip install --no-cache-dir -r requirements-railway.txt",
+    "echo '=== VERIFYING DATABASE.PY HAS GETATTR ==='",
+    "grep -n 'getattr' app/core/database.py || echo 'ERROR: getattr not found!'"
 ]
 
 [deploy]
