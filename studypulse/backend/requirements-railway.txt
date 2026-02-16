@@ -11,7 +11,7 @@ python-multipart>=0.0.6
 sqlalchemy[asyncio]>=2.0.25
 aiosqlite>=0.19.0
 asyncpg>=0.29.0
-psycopg2>=2.9.9
+psycopg2-binary>=2.9.9  # Binary package - no pg_config needed
 
 # ============ AUTHENTICATION & SECURITY ============
 python-jose[cryptography]>=3.3.1
