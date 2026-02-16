@@ -5,7 +5,15 @@ from .config import settings
 import logging
 import sys
 
-# Railway deployment: 2026-02-16
+# RAILWAY DEPLOYMENT MARKER: 2026-02-16-14:45-UTC - COMMIT 0de7dcb
+# This marker proves Railway is deploying the latest code
+print("="*80)
+print("🚂 RAILWAY DEPLOYMENT CHECK")
+print("="*80)
+print(f"✅ Code Version: 2026-02-16-14:45-UTC")
+print(f"✅ Commit: 0de7dcb")
+print(f"✅ Using getattr() for backward compatibility")
+print("="*80)
 
 logger = logging.getLogger(__name__)
 
