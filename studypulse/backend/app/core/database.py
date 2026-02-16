@@ -24,13 +24,15 @@ if is_sqlite:
 # PostgreSQL connection pooling (production)
 elif is_postgres:
     engine_kwargs.update({
-        "pool_size": settings.DB_POOL_SIZE,
-        "max_overflow": settings.DB_MAX_OVERFLOW,
-        "pool_timeout": settings.DB_POOL_TIMEOUT,
+        "pool_size": getattr(settings, 'DB_POOL_SIZE', 5),
+        "max_overflow": getattr(settings, 'DB_MAX_OVERFLOW', 10),
+        "pool_timeout": getattr(settings, 'DB_POOL_TIMEOUT', 30),
         "pool_pre_ping": True,  # Verify connections before using
         "pool_recycle": 3600,   # Recycle connections after 1 hour
     })
-    logger.info(f"Using PostgreSQL with connection pool (size={settings.DB_POOL_SIZE}, max_overflow={settings.DB_MAX_OVERFLOW})")
+    pool_size = getattr(settings, 'DB_POOL_SIZE', 5)
+    max_overflow = getattr(settings, 'DB_MAX_OVERFLOW', 10)
+    logger.info(f"Using PostgreSQL with connection pool (size={pool_size}, max_overflow={max_overflow})")
 
 engine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
 
