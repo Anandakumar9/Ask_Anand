@@ -2,6 +2,7 @@
 import os
 from pydantic_settings import BaseSettings
 from typing import Optional
+from urllib.parse import urlparse, urlunparse, quote
 
 
 class Settings(BaseSettings):
@@ -27,7 +28,24 @@ class Settings(BaseSettings):
 
         # Railway provides postgresql:// but SQLAlchemy async needs postgresql+asyncpg://
         if self.DATABASE_URL.startswith("postgresql://"):
+            # Convert to asyncpg dialect
             self.DATABASE_URL = self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+        # Additional check for Railway's internal URLs (postgres:// scheme)
+        elif self.DATABASE_URL.startswith("postgres://"):
+            # Convert postgres:// to postgresql+asyncpg://
+            self.DATABASE_URL = self.DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+
+        # Validate the URL can be parsed (debug logging)
+        if not self.DATABASE_URL.startswith("sqlite"):
+            try:
+                parsed = urlparse(self.DATABASE_URL)
+                if self.DEBUG or self.ENVIRONMENT == "development":
+                    print(f"✓ Database URL scheme: {parsed.scheme}")
+                    print(f"✓ Database host: {parsed.hostname}")
+            except Exception as e:
+                print(f"⚠️  Warning: Could not validate DATABASE_URL: {e}")
+                print(f"   URL scheme: {self.DATABASE_URL.split('://')[0] if '://' in self.DATABASE_URL else 'unknown'}")
 
     # ── Authentication ────────────────────────────────────────
     SECRET_KEY: str = "change-this-in-production-use-a-real-secret-key-min-32-chars"

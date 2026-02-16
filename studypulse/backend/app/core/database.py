@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 from .config import settings
 import logging
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,22 @@ elif is_postgres:
     max_overflow = getattr(settings, 'DB_MAX_OVERFLOW', 10)
     logger.info(f"Using PostgreSQL with connection pool (size={pool_size}, max_overflow={max_overflow})")
 
-engine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
+# Create engine with error handling
+try:
+    engine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
+    logger.info(f"✓ Database engine created successfully (type: {'SQLite' if is_sqlite else 'PostgreSQL'})")
+except Exception as e:
+    logger.error(f"Failed to create database engine!")
+    logger.error(f"DATABASE_URL scheme: {settings.DATABASE_URL.split('://')[0] if '://' in settings.DATABASE_URL else 'unknown'}")
+    logger.error(f"Error: {str(e)}")
+    sys.stderr.write(f"\n❌ DATABASE CONNECTION ERROR:\n")
+    sys.stderr.write(f"   URL Scheme: {settings.DATABASE_URL.split('://')[0] if '://' in settings.DATABASE_URL else 'INVALID'}\n")
+    sys.stderr.write(f"   Error: {str(e)}\n")
+    sys.stderr.write(f"\n   Possible fixes:\n")
+    sys.stderr.write(f"   1. Ensure DATABASE_URL starts with 'postgresql+asyncpg://' (not 'postgresql://' or 'postgres://')\n")
+    sys.stderr.write(f"   2. Check if password contains special characters - they need URL encoding\n")
+    sys.stderr.write(f"   3. Verify database credentials are correct\n\n")
+    raise
 
 # Create async session factory
 AsyncSessionLocal = sessionmaker(
