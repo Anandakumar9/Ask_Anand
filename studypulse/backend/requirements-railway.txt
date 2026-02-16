@@ -30,6 +30,7 @@ httpx>=0.26.0
 # ============ VECTOR SEARCH (Lightweight only) ============
 hnswlib>=0.8.0
 numpy>=1.24.0
+fastembed>=0.4.0  # Required for PageIndex embeddings (lightweight ONNX)
 
 # ============ CACHING ============
 redis>=5.0.1
@@ -48,7 +49,6 @@ reportlab>=4.0.0
 # EXCLUDED for Railway (too heavy/problematic):
 # - selenium (requires Chrome driver)
 # - playwright (requires browser binaries)
-# - qdrant-client (heavy ML dependencies)
-# - fastembed (ONNX models)
-# - pdfplumber (optional)
+# - qdrant-client (heavy ML dependencies, using PageIndex instead)
+# - pdfplumber (optional, using pypdf only)
 # - testing tools (pytest, locust, etc.)
