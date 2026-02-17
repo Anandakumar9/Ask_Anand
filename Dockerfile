@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# CACHE BUST: 2026-02-17T09:25:00Z - Force rebuild for bcrypt fix
 # Copy backend requirements from subdirectory
 COPY studypulse/backend/requirements-railway.txt requirements.txt
 
