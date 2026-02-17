@@ -437,7 +437,7 @@ async def create_mock_tests(db: AsyncSession, users: List[User], topic_list: Lis
             user_answer = question.correct_answer if is_correct else random.choice([a for a in ["A", "B", "C", "D"] if a != question.correct_answer])
 
             response = QuestionResponse(
-                test_id=test.id,
+                mock_test_id=test.id,
                 question_id=question.id,
                 user_answer=user_answer,
                 is_correct=is_correct,
