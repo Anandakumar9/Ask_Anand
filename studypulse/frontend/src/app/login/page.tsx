@@ -23,7 +23,7 @@ export default function Login() {
         }
 
         // Ping backend
-        fetch('http://localhost:8000/health')
+        fetch(`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8000'}/health`)
             .then(res => res.ok ? setBackendStatus('up') : setBackendStatus('down'))
             .catch(() => setBackendStatus('down'));
     }, [hasHydrated, token, router]);
