@@ -1,4 +1,5 @@
 """StudyPulse FastAPI Application Entry Point."""
+# Cache Bust: 2026-02-17T09:30:00Z - Force Docker COPY layer rebuild
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
