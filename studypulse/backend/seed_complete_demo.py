@@ -239,7 +239,7 @@ async def create_exams_subjects_topics(db: AsyncSession):
                     name=topic_name,
                     description=f"Study material for {topic_name}",
                     difficulty_level=random.choice(["Easy", "Medium", "Hard"]),
-                    estimated_time_mins=random.randint(15, 120)
+                    estimated_study_mins=random.randint(15, 120)
                 )
                 db.add(topic)
                 await db.flush()
