@@ -2,12 +2,9 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from .config import settings
 import re
-
-# Password hashing - Using bcrypt for Railway compatibility (argon2 requires extra deps)
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def validate_password_strength(password: str) -> tuple[bool, str]:
@@ -40,15 +37,23 @@ def validate_password_strength(password: str) -> tuple[bool, str]:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash - truncate to 72 chars for bcrypt compatibility."""
-    # Bcrypt has a 72-byte limit, truncate the string to 72 characters
-    return pwd_context.verify(plain_password[:72], hashed_password)
+    """Verify a password against its hash - uses bcrypt directly."""
+    # Bcrypt has a 72-byte limit, truncate the password to 72 bytes
+    password_bytes = plain_password[:72].encode('utf-8')
+    hashed_bytes = hashed_password.encode('utf-8')
+    try:
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
+    except Exception:
+        return False
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a password for storing - truncate to 72 chars for bcrypt compatibility."""
-    # Bcrypt has a 72-byte limit, truncate the string to 72 characters
-    return pwd_context.hash(password[:72])
+    """Hash a password for storing - uses bcrypt directly."""
+    # Bcrypt has a 72-byte limit, truncate the password to 72 bytes
+    password_bytes = password[:72].encode('utf-8')
+    salt = bcrypt.gensalt(rounds=12)
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode('utf-8')
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
