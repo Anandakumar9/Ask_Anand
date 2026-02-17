@@ -17,6 +17,7 @@ psycopg2-binary>=2.9.9  # Binary package - no pg_config needed
 python-jose[cryptography]>=3.3.1
 passlib[bcrypt]>=1.7.4
 bcrypt>=4.0.1
+argon2-cffi>=21.0.0  # Required for passlib argon2 password hashing
 pydantic[email]>=2.7.0
 pydantic-settings>=2.3.0
 email-validator>=2.1.0
