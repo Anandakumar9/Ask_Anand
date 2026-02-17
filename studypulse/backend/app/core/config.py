@@ -26,7 +26,7 @@ class Settings(BaseSettings):
         """Initialize settings and fix DATABASE_URL for asyncpg if needed."""
         super().__init__(**kwargs)
 
-        # RAILWAY CACHE BUST v2: 2026-02-16T17:30:00Z
+        # RAILWAY CACHE BUST v3: 2026-02-17T08:50:00Z - Added argon2-cffi dependency
         # All DB_POOL_* attributes defined above (lines 21-23)
         # CRITICAL DEBUG: Print what DATABASE_URL we received (Railway debugging)
         print(f"[DEBUG] DATABASE_URL received: {self.DATABASE_URL[:50]}..." if len(self.DATABASE_URL) > 50 else f"[DEBUG] DATABASE_URL received: '{self.DATABASE_URL}'")
