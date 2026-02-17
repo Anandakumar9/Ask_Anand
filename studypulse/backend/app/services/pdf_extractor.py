@@ -10,7 +10,15 @@ import logging
 from pathlib import Path
 from typing import Optional, List, Dict
 
-import pdfplumber
+# Try to import pdfplumber, but make it optional for Railway deployment
+try:
+    import pdfplumber
+    PDFPLUMBER_AVAILABLE = True
+except ImportError:
+    PDFPLUMBER_AVAILABLE = False
+    logger_temp = logging.getLogger(__name__)
+    logger_temp.info("pdfplumber not available - will use pypdf only")
+
 from pypdf import PdfReader
 
 logger = logging.getLogger(__name__)
@@ -30,11 +38,12 @@ class PDFExtractor:
             Extracted text or None if extraction fails
         """
         try:
-            # Try pdfplumber first (better for structured content)
-            text = self._extract_with_pdfplumber(pdf_file)
-            if text and len(text.strip()) > 100:
-                logger.info(f"Extracted {len(text)} chars from {filename} using pdfplumber")
-                return text
+            # Try pdfplumber first if available (better for structured content)
+            if PDFPLUMBER_AVAILABLE:
+                text = self._extract_with_pdfplumber(pdf_file)
+                if text and len(text.strip()) > 100:
+                    logger.info(f"Extracted {len(text)} chars from {filename} using pdfplumber")
+                    return text
 
             # Fallback to pypdf
             text = self._extract_with_pypdf2(pdf_file)
@@ -62,6 +71,14 @@ class PDFExtractor:
         Returns:
             List of dicts with {page_num, text}
         """
+        if not PDFPLUMBER_AVAILABLE:
+            logger.warning("pdfplumber not available - cannot extract by pages, using fallback")
+            # Fallback: extract all text and return as single page
+            text = self.extract_text(pdf_file, filename)
+            if text:
+                return [{"page_num": 1, "text": text, "char_count": len(text)}]
+            return []
+
         pages = []
         try:
             with pdfplumber.open(io.BytesIO(pdf_file)) as pdf:
@@ -138,6 +155,19 @@ class PDFExtractor:
         Returns:
             Dict with page_count, file_size, etc.
         """
+        if not PDFPLUMBER_AVAILABLE:
+            # Fallback: use pypdf to get page count
+            try:
+                reader = PdfReader(io.BytesIO(pdf_file))
+                return {
+                    "page_count": len(reader.pages),
+                    "file_size_kb": len(pdf_file) / 1024,
+                    "metadata": reader.metadata or {},
+                }
+            except Exception as e:
+                logger.error(f"Failed to get PDF info with pypdf: {e}")
+                return {"page_count": 0, "file_size_kb": 0, "metadata": {}}
+
         try:
             with pdfplumber.open(io.BytesIO(pdf_file)) as pdf:
                 return {
