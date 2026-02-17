@@ -40,17 +40,15 @@ def validate_password_strength(password: str) -> tuple[bool, str]:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash."""
-    # Bcrypt has a 72-byte limit, truncate if needed
-    password_bytes = plain_password.encode('utf-8')[:72]
-    return pwd_context.verify(password_bytes.decode('utf-8'), hashed_password)
+    """Verify a password against its hash - truncate to 72 chars for bcrypt compatibility."""
+    # Bcrypt has a 72-byte limit, truncate the string to 72 characters
+    return pwd_context.verify(plain_password[:72], hashed_password)
 
 
 def get_password_hash(password: str) -> str:
-    """Generate password hash."""
-    # Bcrypt has a 72-byte limit, truncate if needed
-    password_bytes = password.encode('utf-8')[:72]
-    return pwd_context.hash(password_bytes.decode('utf-8'))
+    """Hash a password for storing - truncate to 72 chars for bcrypt compatibility."""
+    # Bcrypt has a 72-byte limit, truncate the string to 72 characters
+    return pwd_context.hash(password[:72])
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
