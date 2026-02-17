@@ -418,14 +418,13 @@ async def create_mock_tests(db: AsyncSession, users: List[User], topic_list: Lis
             user_id=user.id,
             topic_id=topic.id,
             total_questions=10,
-            correct_count=correct_count,
-            incorrect_count=incorrect_count,
-            unanswered_count=0,
+            correct_answers=correct_count,
             score_percentage=score_percentage,
             time_taken_seconds=time_taken,
+            star_earned=(score_percentage >= 70),
             status="completed",
             started_at=started_at,
-            submitted_at=started_at + timedelta(seconds=time_taken),
+            completed_at=started_at + timedelta(seconds=time_taken),
             question_ids=[q.id for q in questions[:10]]
         )
         db.add(test)
