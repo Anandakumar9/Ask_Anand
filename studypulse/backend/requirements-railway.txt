@@ -25,7 +25,7 @@ gotrue>=2.0.0,<2.1.0
 slowapi>=0.1.9
 
 # ============ HTTP & NETWORKING ============
-httpx>=0.26.0
+httpx>=0.24.0,<0.26  # Compatible with supabase 2.3.4
 
 # ============ VECTOR SEARCH (Lightweight only) ============
 hnswlib>=0.8.0
