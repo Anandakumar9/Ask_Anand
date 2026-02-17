@@ -89,7 +89,7 @@ gunicorn==21.2.0
 uvicorn[standard]>=0.27.0
 
 # Supabase integration
-supabase==2.3.0
+supabase==2.3.4
 
 # Rate limiting
 slowapi==0.1.9
