@@ -1,6 +1,6 @@
 # ── StudyPulse Backend - Railway Production Dependencies ──
 # Minimal, Railway-optimized requirements (no heavy/problematic deps)
-# CACHE BUST: 2026-02-17T08:55:00Z - Added argon2-cffi for password hashing
+# CACHE BUST: 2026-02-17T10:15:00Z - Fixed bcrypt version for passlib compatibility
 
 # ============ CORE FRAMEWORK ============
 fastapi>=0.109.0
@@ -17,7 +17,7 @@ psycopg2-binary>=2.9.9  # Binary package - no pg_config needed
 # ============ AUTHENTICATION & SECURITY ============
 python-jose[cryptography]>=3.3.1
 passlib[bcrypt]>=1.7.4
-bcrypt>=4.0.1
+bcrypt==3.2.2  # Pin to 3.2.2 for passlib compatibility (bcrypt 4.x has issues)
 argon2-cffi>=21.0.0  # Required for passlib argon2 password hashing
 pydantic[email]>=2.7.0
 pydantic-settings>=2.3.0
