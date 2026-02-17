@@ -6,8 +6,8 @@ from passlib.context import CryptContext
 from .config import settings
 import re
 
-# Password hashing - Using argon2 for Python 3.13 compatibility
-pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
+# Password hashing - Using bcrypt for Railway compatibility (argon2 requires extra deps)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def validate_password_strength(password: str) -> tuple[bool, str]:
