@@ -494,8 +494,7 @@ async def create_question_ratings(db: AsyncSession, users: List[User]):
         rating_obj = QuestionRating(
             question_id=question.id,
             user_id=user.id,
-            rating=rating,
-            feedback=feedback
+            rating=rating
         )
         db.add(rating_obj)
         ratings.append(rating_obj)
