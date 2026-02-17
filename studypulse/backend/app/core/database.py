@@ -90,6 +90,95 @@ async def get_db():
 
 
 async def init_db():
-    """Initialize database tables."""
+    """Initialize database tables and seed demo data if database is empty."""
+    # Create all tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    logger.info("Database tables created/verified successfully")
+
+    # Check if database needs seeding (Railway first deployment)
+    try:
+        from sqlalchemy import select, func as sql_func
+        from app.models.exam import Exam
+
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(select(sql_func.count(Exam.id)))
+            exam_count = result.scalar()
+
+            if exam_count == 0:
+                logger.info("=" * 80)
+                logger.info("EMPTY DATABASE DETECTED - STARTING AUTOMATIC SEEDING")
+                logger.info("This is a first deployment - seeding comprehensive demo data")
+                logger.info("=" * 80)
+
+                # Import and run seeding function from seed_complete_demo.py
+                try:
+                    import sys
+                    from pathlib import Path
+
+                    # Add backend root to path
+                    backend_root = Path(__file__).parent.parent.parent
+                    sys.path.insert(0, str(backend_root))
+
+                    # Import the comprehensive seeding functions
+                    from seed_complete_demo import (
+                        create_exams_subjects_topics,
+                        create_questions,
+                        create_users,
+                        create_study_sessions,
+                        create_mock_tests,
+                        create_question_ratings
+                    )
+
+                    logger.info("Starting comprehensive data seeding...")
+
+                    # Create exam hierarchy
+                    exam_map, subject_map, topic_list = await create_exams_subjects_topics(session)
+
+                    # Create questions
+                    total_questions = await create_questions(session, topic_list)
+
+                    # Create users
+                    users = await create_users(session)
+
+                    # Create study sessions
+                    sessions = await create_study_sessions(session, users, topic_list)
+
+                    # Create mock tests
+                    tests = await create_mock_tests(session, users, topic_list)
+
+                    # Create question ratings
+                    ratings = await create_question_ratings(session, users)
+
+                    logger.info("=" * 80)
+                    logger.info("AUTOMATIC SEEDING COMPLETED - RAILWAY DEPLOYMENT READY")
+                    logger.info("=" * 80)
+                    logger.info(f"Summary:")
+                    logger.info(f"  - Exams: {len(exam_map)}")
+                    logger.info(f"  - Subjects: {len(subject_map)}")
+                    logger.info(f"  - Topics: {len(topic_list)}")
+                    logger.info(f"  - Questions: {total_questions}")
+                    logger.info(f"  - Users: {len(users)}")
+                    logger.info(f"  - Study Sessions: {len(sessions)}")
+                    logger.info(f"  - Mock Tests: {len(tests)}")
+                    logger.info(f"  - Question Ratings: {len(ratings)}")
+                    logger.info("=" * 80)
+
+                except Exception as seed_error:
+                    logger.error("=" * 80)
+                    logger.error("ERROR DURING AUTOMATIC SEEDING")
+                    logger.error(f"Error: {str(seed_error)}")
+                    logger.error(f"Error type: {type(seed_error).__name__}")
+                    import traceback
+                    logger.error(f"Traceback: {traceback.format_exc()}")
+                    logger.error("=" * 80)
+                    # Don't raise - let the app continue even if seeding fails
+                    logger.warning("App will continue without demo data")
+            else:
+                logger.info(f"Database already contains {exam_count} exams - skipping automatic seeding")
+    except Exception as check_error:
+        logger.error(f"Error checking database for seeding: {str(check_error)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        logger.warning("Continuing without seeding check")
