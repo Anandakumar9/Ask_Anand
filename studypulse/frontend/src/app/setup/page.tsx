@@ -48,7 +48,7 @@ export default function ExamSelection() {
                     <ChevronLeft className="text-instacart-dark" />
                 </button>
                 <h1 className="flex-1 text-center font-bold text-lg text-instacart-dark">Select Your Exam</h1>
-                <button className="text-instacart-green font-semibold text-sm px-2" onClick={() => router.push('/')}>Skip</button>
+                <div className="w-10" />
             </header>
 
             <div className="p-4 space-y-6">
@@ -72,12 +72,12 @@ export default function ExamSelection() {
                     return (
                         <section key={category}>
                             <h3 className="text-xs font-bold text-instacart-grey uppercase tracking-wider mb-3 px-1">{category} Exams</h3>
-                            <div className="flex space-x-4 overflow-x-auto pb-4 scrollbar-hide px-1">
+                            <div className="grid grid-cols-2 gap-3 px-1">
                                 {catExams.map(exam => (
                                     <div
                                         key={exam.id}
                                         onClick={() => setSelected(exam.id)}
-                                        className={`flex-shrink-0 card w-44 p-4 cursor-pointer relative transition-all ${selected === exam.id ? 'border-instacart-green bg-instacart-green-light shadow-instacart-hover ring-1 ring-instacart-green' : 'hover:border-instacart-green'
+                                        className={`card p-4 cursor-pointer relative transition-all ${selected === exam.id ? 'border-instacart-green bg-instacart-green-light shadow-instacart-hover ring-1 ring-instacart-green' : 'hover:border-instacart-green'
                                             }`}
                                     >
                                         <div className="text-3xl mb-3">🎓</div>
@@ -113,7 +113,7 @@ export default function ExamSelection() {
                             setLoading(true);
                             try {
                                 await authApi.updateProfile({ target_exam_id: selected });
-                                router.push('/');
+                                router.push(`/subjects?examId=${selected}`);
                             } catch (err) {
                                 console.error('Failed to save exam selection', err);
                                 alert('Failed to save selection. Please try again.');
