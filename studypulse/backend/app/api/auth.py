@@ -264,3 +264,127 @@ async def google_auth(
         token_type="bearer",
         user=UserResponse.model_validate(user),
     )
+
+
+async def _ensure_supabase_user(email: str, supabase_url: str, service_key: str) -> Optional[str]:
+    """Create or find user in Supabase auth. Returns their Supabase UID or None on failure."""
+    headers = {"Authorization": f"Bearer {service_key}", "apikey": service_key}
+    async with httpx.AsyncClient() as client:
+        # Check if user already exists in Supabase
+        search = await client.get(
+            f"{supabase_url}/auth/v1/admin/users",
+            headers=headers,
+            params={"page": 1, "per_page": 1, "filter": email},
+            timeout=10,
+        )
+        if search.status_code == 200:
+            users = search.json().get("users", [])
+            existing = next((u for u in users if u.get("email") == email), None)
+            if existing:
+                return existing["id"]
+
+        # Create new Supabase auth user (email_confirm=True skips email verification)
+        create = await client.post(
+            f"{supabase_url}/auth/v1/admin/users",
+            headers=headers,
+            json={"email": email, "email_confirm": True, "password": None},
+            timeout=10,
+        )
+        if create.status_code in (200, 201):
+            return create.json().get("id")
+    return None
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    payload: dict = Body(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Request password reset.
+    Syncs user to Supabase auth (creates them if needed), then triggers Supabase recovery email.
+    Always returns success to prevent email enumeration.
+    """
+    email = (payload.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="email required")
+
+    supabase_url = getattr(settings, "SUPABASE_URL", None)
+    service_key = getattr(settings, "SUPABASE_SERVICE_KEY", None)
+
+    if not supabase_url or not service_key:
+        raise HTTPException(status_code=501, detail="Password reset not configured on server")
+
+    # Only process if user exists in our DB (silent success if not, to prevent enumeration)
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if user:
+        # Ensure user exists in Supabase auth so recovery email can be sent
+        await _ensure_supabase_user(email, supabase_url, service_key)
+
+        # Trigger Supabase recovery email
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                f"{supabase_url}/auth/v1/recover",
+                headers={"apikey": service_key, "Content-Type": "application/json"},
+                json={"email": email},
+                timeout=10,
+            )
+
+    return {"message": "If that email is registered, a reset link has been sent."}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    payload: dict = Body(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Complete password reset.
+    Receives Supabase recovery access_token + new_password.
+    Verifies token with Supabase, then updates our DB password hash.
+    """
+    access_token = payload.get("access_token")
+    new_password = payload.get("new_password")
+
+    if not access_token or not new_password:
+        raise HTTPException(status_code=400, detail="access_token and new_password required")
+
+    supabase_url = getattr(settings, "SUPABASE_URL", None)
+    service_key = getattr(settings, "SUPABASE_SERVICE_KEY", None)
+
+    if not supabase_url or not service_key:
+        raise HTTPException(status_code=501, detail="Password reset not configured")
+
+    # Verify the recovery token and get user email from Supabase
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{supabase_url}/auth/v1/user",
+            headers={"Authorization": f"Bearer {access_token}", "apikey": service_key},
+            timeout=10,
+        )
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid or expired reset token")
+
+    email = resp.json().get("email", "")
+    if not email:
+        raise HTTPException(status_code=400, detail="Could not verify identity")
+
+    # Validate new password
+    from app.core.security import validate_password_strength
+    valid, msg = validate_password_strength(new_password)
+    if not valid:
+        raise HTTPException(status_code=400, detail=msg)
+
+    # Update password in our DB
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.hashed_password = get_password_hash(new_password)
+    await db.commit()
+
+    return {"message": "Password updated successfully"}
