@@ -123,6 +123,10 @@ class Settings(BaseSettings):
     # ── Optional: OpenRouter fallback ─────────────────────────
     OPENROUTER_API_KEY: Optional[str] = None
 
+    # ── Supabase (Google OAuth + Password Reset) ──────────────
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_SERVICE_KEY: Optional[str] = None  # service_role key — backend only
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
     def validate_security(self):

@@ -1,11 +1,13 @@
 """Authentication API endpoints."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
+import httpx
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.core.security import verify_password, get_password_hash, create_access_token, decode_access_token
 from app.models.user import User
 from app.schemas.user import UserCreate, UserLogin, UserResponse, UserUpdate, TokenResponse
@@ -180,7 +182,7 @@ async def update_me(
     db.add(current_user)
     await db.commit()
     await db.refresh(current_user)
-    
+
     return current_user
 
 
@@ -188,8 +190,77 @@ async def update_me(
 async def logout(current_user: User = Depends(get_current_user)):
     """
     Logout current user.
-    
+
     Note: Since we use JWT, actual logout is handled client-side
     by deleting the token. This endpoint is for future features.
     """
     return {"message": "Successfully logged out"}
+
+
+@router.post("/google", response_model=TokenResponse)
+async def google_auth(
+    payload: dict = Body(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Authenticate with Google via Supabase access token.
+
+    Client passes the Supabase access_token obtained after Google OAuth.
+    We verify it with Supabase, extract the user's email + name, then
+    create-or-fetch our own User record and return a StudyPulse JWT.
+    """
+    supabase_token = payload.get("access_token")
+    if not supabase_token:
+        raise HTTPException(status_code=400, detail="access_token required")
+
+    supabase_url = getattr(settings, "SUPABASE_URL", None)
+    if not supabase_url:
+        raise HTTPException(status_code=501, detail="Google auth not configured on server")
+
+    # Verify token with Supabase and get user info
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{supabase_url}/auth/v1/user",
+            headers={"Authorization": f"Bearer {supabase_token}",
+                     "apikey": getattr(settings, "SUPABASE_SERVICE_KEY", "")},
+            timeout=10,
+        )
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+
+    supa_user = resp.json()
+    email: str = supa_user.get("email", "")
+    name: str = (
+        supa_user.get("user_metadata", {}).get("full_name")
+        or supa_user.get("user_metadata", {}).get("name")
+        or email.split("@")[0]
+    )
+    avatar_url: str = supa_user.get("user_metadata", {}).get("avatar_url", "")
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Could not retrieve email from Google")
+
+    # Find or create user
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        user = User(
+            email=email,
+            name=name,
+            hashed_password=get_password_hash(supa_user.get("id", email)),  # unusable password
+            avatar_url=avatar_url,
+            is_active=True,
+            total_stars=0,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+    access_token = create_access_token(data={"sub": str(user.id)})
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=UserResponse.model_validate(user),
+    )
