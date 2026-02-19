@@ -1,12 +1,15 @@
-"""PDF-to-Question parser using Ollama AI.
+"""PDF-to-Question parser using OpenRouter (cost-optimized) or Ollama.
 
 Converts extracted PDF text into structured MCQ questions.
-Uses intelligent chunking and Ollama's JSON mode for reliable parsing.
+Uses intelligent chunking and JSON mode for reliable parsing.
+Supports both OpenRouter (multi-LLM fallback) and Ollama (local).
 """
 import logging
 from typing import List, Dict, Optional
 
+from app.core.config import settings
 from app.core.ollama import ollama_client
+from app.core.openrouter import openrouter_client
 from app.schemas.question_import import QuestionImport
 
 logger = logging.getLogger(__name__)
@@ -116,12 +119,34 @@ TARGET DIFFICULTY: {difficulty}
 Generate exactly {count} questions following the rules. Output ONLY the JSON array."""
 
         try:
-            # Use Ollama JSON mode for structured output
-            result = await ollama_client.generate_json(
-                prompt=prompt,
-                system=self.SYSTEM_PROMPT,
-                temperature=0.7,  # Some creativity, but not too much
+            # Choose LLM provider (OpenRouter preferred for cost optimization)
+            use_openrouter = (
+                settings.LLM_PROVIDER == "openrouter" and 
+                await openrouter_client.is_available()
             )
+            
+            # Fallback to Ollama if OpenRouter not available
+            if not use_openrouter:
+                if settings.LLM_PROVIDER == "openrouter":
+                    logger.info("OpenRouter unavailable, falling back to Ollama...")
+                use_openrouter = False
+            
+            # Generate questions using selected provider
+            if use_openrouter:
+                result = await openrouter_client.generate_json(
+                    prompt=prompt,
+                    system=self.SYSTEM_PROMPT,
+                    temperature=0.7,
+                )
+            else:
+                if not await ollama_client.is_available():
+                    logger.warning("No LLM provider available for PDF parsing")
+                    return []
+                result = await ollama_client.generate_json(
+                    prompt=prompt,
+                    system=self.SYSTEM_PROMPT,
+                    temperature=0.7,
+                )
 
             if not result or not isinstance(result, list):
                 logger.warning(f"Invalid response from Ollama: {type(result)}")

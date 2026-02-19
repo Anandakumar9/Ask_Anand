@@ -2,9 +2,8 @@
 
 Key design decisions:
   - Generates questions in batches of 3 (not all at once)
-  - phi4-mini reliably produces 1-3 questions per call
-  - Asking for 7-10 at once causes timeouts and malformed JSON
-  - Uses Ollama format="json" for clean output (set in ollama.py)
+  - Supports both Ollama (local) and OpenRouter (API-based, cost-optimized)
+  - OpenRouter uses cheapest models first (DeepSeek R1 free → DeepSeek Chat → Qwen → Llama → GPT-4o-mini)
   - PARALLEL: Runs multiple batches concurrently using asyncio.gather()
 """
 import asyncio
@@ -13,6 +12,7 @@ import time
 
 from app.core.config import settings
 from app.core.ollama import ollama_client
+from app.core.openrouter import openrouter_client
 from app.rag.prompt_templates import get_batch_prompt, get_system_prompt
 from app.rag.quality_validator import validate_questions_batch
 
@@ -48,14 +48,31 @@ class QuestionGenerator:
         excluded_summaries: list[str] | None = None,
         max_retries: int = 3,
     ) -> list[dict]:
-        """Generate MCQ questions via Ollama using PARALLEL batches.
+        """Generate MCQ questions using PARALLEL batches.
 
+        Uses OpenRouter (cost-optimized) if configured, otherwise falls back to Ollama.
         OPTIMIZED for speed: Runs multiple batches concurrently instead of sequentially.
         This reduces generation time from 132s to < 10s for 10 questions.
         """
-        if not await ollama_client.is_available():
-            logger.warning("Ollama unavailable — skipping AI generation")
-            return []
+        # Check which LLM provider to use
+        use_openrouter = (
+            settings.LLM_PROVIDER == "openrouter" and 
+            await openrouter_client.is_available()
+        )
+        use_ollama = (
+            settings.LLM_PROVIDER == "ollama" and 
+            await ollama_client.is_available()
+        )
+        
+        # Fallback: if OpenRouter not available but configured, try Ollama
+        if not use_openrouter and not use_ollama:
+            if settings.LLM_PROVIDER == "openrouter":
+                logger.warning("OpenRouter unavailable, trying Ollama fallback...")
+                use_ollama = await ollama_client.is_available()
+            
+            if not use_ollama:
+                logger.warning("No LLM provider available — skipping AI generation")
+                return []
 
         t0 = time.time()
         system = get_system_prompt(exam_name, subject_name)
@@ -67,8 +84,9 @@ class QuestionGenerator:
                 seen_texts.add(s.strip().lower()[:80])
 
         # PARALLEL GENERATION: Run multiple batches concurrently
+        provider_name = "OpenRouter" if use_openrouter else "Ollama"
         logger.info(
-            f"🚀 Starting PARALLEL generation: {count} questions using {PARALLEL_BATCHES} concurrent agents"
+            f"🚀 Starting PARALLEL generation ({provider_name}): {count} questions using {PARALLEL_BATCHES} concurrent agents"
         )
 
         all_valid = await self._generate_parallel(
@@ -79,6 +97,7 @@ class QuestionGenerator:
             system=system,
             context_questions=context_questions,
             seen_texts=seen_texts,
+            use_openrouter=use_openrouter,
         )
 
         elapsed = time.time() - t0
@@ -108,6 +127,7 @@ class QuestionGenerator:
         system: str,
         context_questions: list[dict] | None,
         seen_texts: set[str],
+        use_openrouter: bool = False,
     ) -> list[dict]:
         """Generate questions using parallel batch execution.
 
@@ -145,6 +165,7 @@ class QuestionGenerator:
                     batch_num=batch_num,
                     already_generated=[q["question_text"][:60] for q in all_valid],
                     context_questions=context_questions,
+                    use_openrouter=use_openrouter,
                 )
                 tasks.append(task)
 
@@ -186,6 +207,7 @@ class QuestionGenerator:
         batch_num: int,
         already_generated: list[str],
         context_questions: list[dict] | None,
+        use_openrouter: bool = False,
     ) -> list[dict]:
         """Generate a single batch of questions (used for parallel execution)."""
         chunk_size = BATCH_SIZE
@@ -200,14 +222,22 @@ class QuestionGenerator:
         )
 
         logger.debug(
-            f"  Agent {batch_num}: Requesting {chunk_size} questions..."
+            f"  Agent {batch_num}: Requesting {chunk_size} questions via {'OpenRouter' if use_openrouter else 'Ollama'}..."
         )
 
-        result = await ollama_client.generate_json(
-            prompt=prompt,
-            system=system,
-            temperature=0.4 + (batch_num * 0.05),
-        )
+        # Use OpenRouter or Ollama based on configuration
+        if use_openrouter:
+            result = await openrouter_client.generate_json(
+                prompt=prompt,
+                system=system,
+                temperature=0.4 + (batch_num * 0.05),
+            )
+        else:
+            result = await ollama_client.generate_json(
+                prompt=prompt,
+                system=system,
+                temperature=0.4 + (batch_num * 0.05),
+            )
 
         if not result:
             logger.warning(f"  Agent {batch_num}: No valid output")

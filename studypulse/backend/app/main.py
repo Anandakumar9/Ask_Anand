@@ -10,6 +10,11 @@ from app.core.logging_config import setup_logging
 from app.core.cache import cache
 from app.core.database import init_db
 from app.core.ollama import ollama_client
+from app.core.openrouter import openrouter_client
+
+# Security middleware (headers, request limits, rate limiting)
+from app.middleware.security_headers import SecurityHeadersMiddleware, RequestSizeLimitMiddleware
+from app.middleware.rate_limiter import setup_rate_limiting
 
 # Dynamic vector store selection (Qdrant or PageIndex)
 if settings.USE_PAGEINDEX:
@@ -40,7 +45,12 @@ async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
     logger.info(f"Starting {settings.APP_NAME} API... [Railway Deploy]")
-    logger.info(f"Database: {settings.DATABASE_URL}")
+    try:
+        from app.core.config import redact_database_url
+
+        logger.info("Database: %s", redact_database_url(settings.DATABASE_URL))
+    except Exception:
+        logger.info("Database: <redacted>")
     logger.info(f"Ollama: {settings.OLLAMA_MODEL}")
     logger.info(f"RAG Pipeline: {'Enabled' if settings.RAG_ENABLED else 'Disabled'}")
     logger.info(f"Star Threshold: {settings.STAR_THRESHOLD_PERCENTAGE}%")
@@ -58,20 +68,37 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing Qdrant vector store...")
     await vector_store.initialize()
     
-    # Initialize Ollama async client
-    logger.info("Initializing Ollama LLM client...")
-    await ollama_client.initialize()
-    available = await ollama_client.is_available()
-    if available:
-        logger.info(f"Ollama model '{settings.OLLAMA_MODEL}' ready")
+    # Initialize LLM client (OpenRouter or Ollama)
+    if settings.LLM_PROVIDER == "openrouter":
+        logger.info("Initializing OpenRouter LLM client (cost-optimized)...")
+        await openrouter_client.initialize()
+        available = await openrouter_client.is_available()
+        if available:
+            logger.info("OpenRouter ready (multi-LLM fallback: DeepSeek → Qwen → Llama → GPT-4o-mini)")
+        else:
+            logger.warning("OpenRouter not available — trying Ollama fallback...")
+            await ollama_client.initialize()
+            available = await ollama_client.is_available()
+            if available:
+                logger.info(f"Using Ollama fallback: '{settings.OLLAMA_MODEL}'")
+            else:
+                logger.warning("No LLM provider available — AI question generation disabled")
     else:
-        logger.warning("Ollama not available — AI question generation disabled")
+        logger.info("Initializing Ollama LLM client...")
+        await ollama_client.initialize()
+        available = await ollama_client.is_available()
+        if available:
+            logger.info(f"Ollama model '{settings.OLLAMA_MODEL}' ready")
+        else:
+            logger.warning("Ollama not available — AI question generation disabled")
     
     yield
     
     # Shutdown
     logger.info(f"[SHUTDOWN] Shutting down {settings.APP_NAME} API...")
     await vector_store.close()
+    if settings.LLM_PROVIDER == "openrouter":
+        await openrouter_client.close()
     await ollama_client.close()
     await cache.close()
     logger.info("[OK] Cleanup completed")
@@ -97,6 +124,14 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan
 )
+
+# Security middleware (safe defaults)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(
+    RequestSizeLimitMiddleware,
+    max_size=settings.MAX_REQUEST_SIZE_MB * 1024 * 1024,
+)
+setup_rate_limiting(app)
 
 # CORS Configuration
 app.add_middleware(
@@ -193,15 +228,29 @@ async def health_check():
         health_status["components"]["cache"] = "unhealthy"
         health_status["status"] = "degraded"
 
-    # Check Ollama
+    # Check LLM provider (OpenRouter or Ollama)
     try:
-        ollama_available = await ollama_client.is_available()
-        health_status["components"]["ollama"] = "healthy" if ollama_available else "unavailable"
-        if not ollama_available and settings.RAG_ENABLED:
-            health_status["status"] = "degraded"
+        if settings.LLM_PROVIDER == "openrouter":
+            openrouter_available = await openrouter_client.is_available()
+            health_status["components"]["llm"] = "healthy" if openrouter_available else "unavailable"
+            if openrouter_available:
+                # Add cost metrics
+                metrics = openrouter_client.get_metrics()
+                health_status["llm_metrics"] = {
+                    "provider": "openrouter",
+                    "total_cost_usd": metrics.get("total_cost_usd", 0),
+                    "token_usage": metrics.get("token_usage", {}),
+                }
+            elif settings.RAG_ENABLED:
+                health_status["status"] = "degraded"
+        else:
+            ollama_available = await ollama_client.is_available()
+            health_status["components"]["llm"] = "healthy" if ollama_available else "unavailable"
+            if not ollama_available and settings.RAG_ENABLED:
+                health_status["status"] = "degraded"
     except Exception as e:
-        logger.error(f"Ollama health check failed: {e}")
-        health_status["components"]["ollama"] = "error"
+        logger.error(f"LLM health check failed: {e}")
+        health_status["components"]["llm"] = "error"
 
     # Check vector store
     try:

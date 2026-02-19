@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyPulse Diagnostic Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .loading {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 StudyPulse Diagnostic Tool</h1>
+    <p>This tool will test all components of your StudyPulse deployment.</p>
+
+    <div class="section">
+        <h2>1. Backend Tests</h2>
+        <button onclick="testBackend()">Test Backend</button>
+        <div id="backend-results"></div>
+    </div>
+
+    <div class="section">
+        <h2>2. API Tests</h2>
+        <button onclick="testAPI()">Test API Endpoints</button>
+        <div id="api-results"></div>
+    </div>
+
+    <div class="section">
+        <h2>3. CORS Tests</h2>
+        <button onclick="testCORS()">Test CORS</button>
+        <div id="cors-results"></div>
+    </div>
+
+    <div class="section">
+        <h2>4. Complete User Flow Test</h2>
+        <button onclick="testCompleteFlow()">Test Guest Login → Exams → Mock Test</button>
+        <div id="flow-results"></div>
+    </div>
+
+    <div class="section">
+        <h2>5. Frontend Verification</h2>
+        <button onclick="checkFrontend()">Check Frontend Issues</button>
+        <div id="frontend-results"></div>
+    </div>
+
+    <script>
+        const RAILWAY_URL = 'https://askanand-simba.up.railway.app';
+        const VERCEL_URL = 'https://studypulse-eta.vercel.app';
+        const LOCAL_BACKEND = 'http://localhost:8001';
+
+        function addResult(elementId, message, type = 'loading') {
+            const div = document.getElementById(elementId);
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${type}`;
+            resultDiv.innerHTML = message;
+            div.appendChild(resultDiv);
+            return resultDiv;
+        }
+
+        async function testBackend() {
+            const results = document.getElementById('backend-results');
+            results.innerHTML = '';
+
+            // Test Railway Backend
+            addResult('backend-results', '⏳ Testing Railway Backend...', 'loading');
+            try {
+                const response = await fetch(`${RAILWAY_URL}`);
+                const data = await response.json();
+                if (data.message) {
+                    addResult('backend-results', `✅ Railway Backend: WORKING<br>Message: ${data.message}`, 'success');
+                } else {
+                    addResult('backend-results', '❌ Railway Backend: Unexpected response', 'error');
+                }
+            } catch (error) {
+                addResult('backend-results', `❌ Railway Backend: ERROR<br>${error.message}`, 'error');
+            }
+
+            // Test Local Backend
+            addResult('backend-results', '⏳ Testing Local Backend...', 'loading');
+            try {
+                const response = await fetch(LOCAL_BACKEND);
+                const data = await response.json();
+                if (data.message) {
+                    addResult('backend-results', `✅ Local Backend: WORKING<br>Message: ${data.message}`, 'success');
+                } else {
+                    addResult('backend-results', '❌ Local Backend: Unexpected response', 'error');
+                }
+            } catch (error) {
+                addResult('backend-results', `⚠️ Local Backend: NOT RUNNING<br>(This is OK if you're testing Railway only)`, 'error');
+            }
+        }
+
+        async function testAPI() {
+            const results = document.getElementById('api-results');
+            results.innerHTML = '';
+
+            // Test Exams Endpoint
+            addResult('api-results', '⏳ Testing /api/v1/exams/ endpoint...', 'loading');
+            try {
+                const response = await fetch(`${RAILWAY_URL}/api/v1/exams/`);
+                const exams = await response.json();
+                if (Array.isArray(exams) && exams.length > 0) {
+                    addResult('api-results', `✅ Exams Endpoint: WORKING<br>Found ${exams.length} exams:<br>${exams.map(e => e.name).join(', ')}`, 'success');
+                } else {
+                    addResult('api-results', '❌ Exams Endpoint: Empty array', 'error');
+                }
+            } catch (error) {
+                addResult('api-results', `❌ Exams Endpoint: ERROR<br>${error.message}`, 'error');
+            }
+
+            // Test Guest Auth
+            addResult('api-results', '⏳ Testing guest authentication...', 'loading');
+            try {
+                const response = await fetch(`${RAILWAY_URL}/api/v1/auth/guest`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: '{}'
+                });
+                const data = await response.json();
+                if (data.access_token) {
+                    addResult('api-results', `✅ Guest Auth: WORKING<br>Token received: ${data.access_token.substring(0, 50)}...`, 'success');
+                    window.testToken = data.access_token;
+                } else {
+                    addResult('api-results', '❌ Guest Auth: No token received', 'error');
+                }
+            } catch (error) {
+                addResult('api-results', `❌ Guest Auth: ERROR<br>${error.message}`, 'error');
+            }
+        }
+
+        async function testCORS() {
+            const results = document.getElementById('cors-results');
+            results.innerHTML = '';
+
+            addResult('cors-results', '⏳ Testing CORS configuration...', 'loading');
+            try {
+                const response = await fetch(`${RAILWAY_URL}/api/v1/exams/`, {
+                    method: 'GET',
+                    headers: {
+                        'Origin': window.location.origin
+                    }
+                });
+
+                const corsHeader = response.headers.get('Access-Control-Allow-Origin');
+                if (corsHeader) {
+                    addResult('cors-results', `✅ CORS: WORKING<br>Allowed Origin: ${corsHeader}`, 'success');
+                } else {
+                    addResult('cors-results', '⚠️ CORS: No CORS headers found (might still work)', 'loading');
+                }
+            } catch (error) {
+                addResult('cors-results', `❌ CORS: ERROR<br>${error.message}`, 'error');
+            }
+        }
+
+        async function testCompleteFlow() {
+            const results = document.getElementById('flow-results');
+            results.innerHTML = '';
+
+            let token;
+
+            // Step 1: Guest Login
+            addResult('flow-results', '⏳ Step 1: Guest Login...', 'loading');
+            try {
+                const response = await fetch(`${RAILWAY_URL}/api/v1/auth/guest`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: '{}'
+                });
+                const data = await response.json();
+                token = data.access_token;
+                addResult('flow-results', `✅ Guest Login: SUCCESS<br>User: ${data.user.name} (ID: ${data.user.id})`, 'success');
+            } catch (error) {
+                addResult('flow-results', `❌ Guest Login: FAILED<br>${error.message}`, 'error');
+                return;
+            }
+
+            // Step 2: Get Exams
+            addResult('flow-results', '⏳ Step 2: Fetching Exams...', 'loading');
+            try {
+                const response = await fetch(`${RAILWAY_URL}/api/v1/exams/`, {
+                    headers: {'Authorization': `Bearer ${token}`}
+                });
+                const exams = await response.json();
+                addResult('flow-results', `✅ Fetch Exams: SUCCESS<br>Found ${exams.length} exams`, 'success');
+            } catch (error) {
+                addResult('flow-results', `❌ Fetch Exams: FAILED<br>${error.message}`, 'error');
+                return;
+            }
+
+            // Step 3: Start Mock Test
+            addResult('flow-results', '⏳ Step 3: Starting Mock Test...', 'loading');
+            try {
+                const response = await fetch(`${RAILWAY_URL}/api/v1/mock-tests/`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({exam_id: 1, question_count: 5})
+                });
+                const testData = await response.json();
+                addResult('flow-results', `✅ Mock Test: SUCCESS<br>Test ID: ${testData.id}<br>Questions: ${testData.questions.length}`, 'success');
+            } catch (error) {
+                addResult('flow-results', `❌ Mock Test: FAILED<br>${error.message}`, 'error');
+                return;
+            }
+
+            addResult('flow-results', '🎉 COMPLETE FLOW: ALL TESTS PASSED!', 'success');
+        }
+
+        async function checkFrontend() {
+            const results = document.getElementById('frontend-results');
+            results.innerHTML = '';
+
+            addResult('frontend-results', '⏳ Checking Vercel frontend...', 'loading');
+            try {
+                const response = await fetch(VERCEL_URL);
+                const html = await response.text();
+
+                if (html.includes('StudyPulse')) {
+                    addResult('frontend-results', '✅ Frontend HTML: LOADING', 'success');
+                } else {
+                    addResult('frontend-results', '❌ Frontend HTML: No StudyPulse content found', 'error');
+                }
+
+                // Check for JavaScript errors
+                addResult('frontend-results', `
+                    <strong>🔍 Debugging Tips for Blank Screen:</strong><br><br>
+                    1. Open <a href="${VERCEL_URL}" target="_blank">Vercel Frontend</a><br>
+                    2. Press <strong>F12</strong> to open DevTools<br>
+                    3. Go to <strong>Console</strong> tab<br>
+                    4. Look for errors (red text)<br>
+                    5. Common issues:<br>
+                       - "Failed to fetch" → Backend not accessible<br>
+                       - "CORS error" → CORS not configured<br>
+                       - "Undefined" errors → Missing data<br>
+                       - "Network error" → API URL not set<br><br>
+                    6. Go to <strong>Network</strong> tab<br>
+                    7. Refresh the page<br>
+                    8. Check if API calls are being made<br>
+                    9. Click on failed requests to see why they failed<br><br>
+
+                    <strong>Expected Behavior:</strong><br>
+                    - You should see API calls to ${RAILWAY_URL}<br>
+                    - These should return 200 OK status<br>
+                    - The page should render content (not blank)
+                `, 'loading');
+
+            } catch (error) {
+                addResult('frontend-results', `❌ Frontend: ERROR<br>${error.message}`, 'error');
+            }
+        }
+
+        // Auto-run all tests on load
+        window.addEventListener('load', () => {
+            console.log('StudyPulse Diagnostic Tool Loaded');
+        });
+    </script>
+</body>
+</html>

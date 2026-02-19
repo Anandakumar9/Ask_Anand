@@ -63,6 +63,7 @@ class QuestionOrchestrator:
         question_count: int | None = None,
         previous_year_ratio: float | None = None,
         db: AsyncSession | None = None,
+        extra_exclude_ids: list[int] | None = None,
     ) -> dict:
         """Generate a complete test for a user on a specific topic.
 
@@ -169,6 +170,9 @@ class QuestionOrchestrator:
 
         # ── Step 1: Get user history (for deduplication) ──────
         history_ids = await self._user_history(user_id, topic_id, db)
+        # Merge in any client-supplied IDs (from previous sessions in this browser)
+        if extra_exclude_ids:
+            history_ids = list(set(history_ids) | set(extra_exclude_ids))
 
         # ── Step 2: Fetch questions from database ─────────────
         db_target_count = int(question_count * previous_year_ratio) if settings.RAG_ENABLED else question_count

@@ -1,209 +1,300 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { ChevronLeft, Clock, Bookmark, ChevronRight, Loader2, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, Loader2, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { testApi } from '@/services/api';
 
-function MockTestContent() {
+interface Question {
+    id: number;
+    question_text: string;
+    options: Record<string, string>;
+    difficulty: string;
+    source: string;
+}
+
+interface QuestionResult {
+    question_id: number;
+    question_text: string;
+    options: Record<string, string>;
+    user_answer: string | null;
+    correct_answer: string;
+    is_correct: boolean;
+    explanation?: string;
+    source: string;
+}
+
+function TestContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const topicId = searchParams.get('topicId');
     const sessionId = searchParams.get('sessionId');
 
-    const [questions, setQuestions] = useState<any[]>([]);
-    const [currentIdx, setCurrentIdx] = useState(0);
-    const [answers, setAnswers] = useState<any>({});
-    const [loading, setLoading] = useState(true);
+    const [phase, setPhase] = useState<'loading' | 'active' | 'submitting' | 'results'>('loading');
     const [testId, setTestId] = useState<number | null>(null);
-    const [timeTaken, setTimeTaken] = useState(0);
-    const [submitting, setSubmitting] = useState(false);
+    const [questions, setQuestions] = useState<Question[]>([]);
+    const [answers, setAnswers] = useState<Record<number, string>>({});
+    const [results, setResults] = useState<any | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [startTime] = useState(Date.now());
 
     useEffect(() => {
-        const startTest = async () => {
-            if (!topicId) {
-                router.push('/');
-                return;
-            }
+        if (!topicId) { router.push('/'); return; }
+
+        const load = async () => {
             try {
-                const response = await testApi.startTest({
+                const res = await testApi.startTest({
                     topic_id: parseInt(topicId),
                     session_id: sessionId ? parseInt(sessionId) : undefined,
-                    question_count: 5 // Smaller count for testing
+                    question_count: 10,
                 });
-                setQuestions(response.data.questions);
-                setTestId(response.data.test_id);
+                setTestId(res.data.test_id);
+                setQuestions(res.data.questions || []);
+                setPhase('active');
             } catch (err) {
-                console.error('Failed to start test', err);
-                router.push('/');
-            } finally {
-                setLoading(false);
+                console.error(err);
+                setError('Could not load test questions. Please go back and try again.');
+                setPhase('results'); // show error screen
             }
         };
-        startTest();
-    }, [topicId, sessionId, router]);
-
-    useEffect(() => {
-        let interval: any = null;
-        if (!loading && questions.length > 0) {
-            interval = setInterval(() => {
-                setTimeTaken(prev => prev + 1);
-            }, 1000);
-        }
-        return () => clearInterval(interval);
-    }, [loading, questions]);
-
-    const handleSelect = (optionId: string) => {
-        const questionId = questions[currentIdx].id;
-        setAnswers({
-            ...answers,
-            [questionId]: optionId
-        });
-    };
+        load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleSubmit = async () => {
-        if (!testId || submitting) return;
-        setSubmitting(true);
-
+        if (!testId) return;
+        setPhase('submitting');
+        const totalTime = Math.floor((Date.now() - startTime) / 1000);
+        const responses = questions.map((q) => ({
+            question_id: q.id,
+            answer: answers[q.id] || null,
+        }));
         try {
-            const responses = questions.map(q => ({
-                question_id: q.id,
-                answer: answers[q.id] || null,
-                time_spent_seconds: 0 // Could refine this to track per-question time
-            }));
-
-            const result = await testApi.submitTest(testId, responses, timeTaken);
-            router.push(`/results?testId=${testId}`);
+            const res = await testApi.submitTest(testId, responses, totalTime);
+            // Persist question IDs so future sessions exclude them
+            if (topicId && questions.length > 0) {
+                try {
+                    const key = `sp_seen_${topicId}`;
+                    const existing: number[] = JSON.parse(localStorage.getItem(key) || '[]');
+                    const merged = Array.from(new Set([...existing, ...questions.map((q) => q.id)]));
+                    localStorage.setItem(key, JSON.stringify(merged));
+                } catch {}
+            }
+            setResults(res.data);
+            setPhase('results');
         } catch (err) {
-            console.error('Failed to submit test', err);
-        } finally {
-            setSubmitting(false);
+            console.error(err);
+            setError('Failed to submit test. Please try again.');
+            setPhase('active');
         }
     };
 
-    const formatTime = (seconds: number) => {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    };
-
-    if (loading) {
+    // ── Loading ──
+    if (phase === 'loading') {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-white">
+            <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-4">
                 <Loader2 className="animate-spin text-instacart-green" size={48} />
+                <p className="text-instacart-grey text-sm">Loading questions…</p>
             </div>
         );
     }
 
-    if (questions.length === 0) return null;
-
-    const currentQuestion = questions[currentIdx];
-    const selectedOption = answers[currentQuestion.id];
-
-    return (
-        <main className="min-h-screen bg-instacart-grey-light flex flex-col">
-            <header className="p-4 bg-white border-b border-instacart-border flex items-center shadow-sm">
-                <button onClick={() => router.back()} className="p-1">
-                    <ChevronLeft className="text-instacart-dark" />
-                </button>
-                <div className="flex-1 text-center">
-                    <h1 className="font-bold text-instacart-dark">Question {currentIdx + 1} of {questions.length}</h1>
-                </div>
-                <div className="flex items-center space-x-1 bg-instacart-grey-light px-3 py-1.5 rounded-full text-instacart-dark font-mono text-sm font-bold border border-instacart-border">
-                    <Clock size={16} />
-                    <span>{formatTime(timeTaken)}</span>
-                </div>
-            </header>
-
-            <div className="bg-instacart-border h-1.5 w-full">
-                <div
-                    className="bg-instacart-green h-full transition-all duration-500"
-                    style={{ width: `${((currentIdx + 1) / questions.length) * 100}%` }}
-                ></div>
+    // ── Submitting ──
+    if (phase === 'submitting') {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-4">
+                <Loader2 className="animate-spin text-instacart-green" size={48} />
+                <p className="text-instacart-grey text-sm">Submitting your answers…</p>
             </div>
+        );
+    }
 
-            <div className="p-4 space-y-6 flex-1 overflow-y-auto">
-                <div className="card shadow-md relative">
-                    <div className="flex items-center justify-between mb-4">
-                        <span className="text-[10px] uppercase font-black tracking-widest bg-instacart-green text-white px-2 py-1 rounded">
-                            {currentQuestion.source === 'AI' ? 'AI Question' : 'Previous Year'}
-                        </span>
-                        <button className="text-instacart-grey hover:text-instacart-green transition-colors">
-                            <Bookmark size={20} />
+    // ── Results ──
+    if (phase === 'results') {
+        if (error && !results) {
+            return (
+                <main className="min-h-screen bg-instacart-grey-light">
+                    <header className="p-4 flex items-center bg-white border-b border-instacart-border">
+                        <button onClick={() => router.push('/')} className="p-2 rounded-full hover:bg-instacart-grey-light">
+                            <ChevronLeft className="text-instacart-dark" />
+                        </button>
+                        <h1 className="flex-1 text-center font-bold text-lg text-instacart-dark">Mock Test</h1>
+                        <div className="w-10" />
+                    </header>
+                    <div className="p-4">
+                        <div className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-2xl p-4">
+                            <AlertCircle size={18} className="text-red-500 flex-shrink-0 mt-0.5" />
+                            <p className="text-sm text-red-700">{error}</p>
+                        </div>
+                        <button onClick={() => router.back()} className="w-full mt-4 bg-instacart-green text-white font-bold py-4 rounded-2xl">
+                            Go Back
                         </button>
                     </div>
-                    <h2 className="text-lg font-bold text-instacart-dark leading-snug">
-                        {currentQuestion.question_text}
-                    </h2>
-                </div>
+                </main>
+            );
+        }
 
-                <div className="space-y-3">
-                    {Object.entries(currentQuestion.options).map(([id, text]: any) => (
-                        <div
-                            key={id}
-                            onClick={() => handleSelect(id)}
-                            className={`flex items-center p-4 rounded-xl border-2 transition-all cursor-pointer bg-white shadow-sm ${selectedOption === id
-                                    ? 'border-instacart-green bg-instacart-green-light ring-1 ring-instacart-green'
-                                    : 'border-instacart-border hover:border-instacart-green'
-                                }`}
-                        >
-                            <div className={`h-6 w-6 rounded-full border-2 flex items-center justify-center mr-4 transition-all ${selectedOption === id ? 'border-instacart-green bg-instacart-green text-white' : 'border-instacart-border'
-                                }`}>
-                                {selectedOption === id ? id : <span className="text-xs font-bold text-instacart-grey">{id}</span>}
-                            </div>
-                            <span className="font-semibold text-instacart-dark">
-                                {text}
-                            </span>
-                            {selectedOption === id && (
-                                <div className="ml-auto text-instacart-green">
-                                    <CheckCircle2 size={18} fill="white" />
+        const score = results?.score_percentage ?? 0;
+        const correct = results?.correct_count ?? 0;
+        const total = results?.total_questions ?? 0;
+        const starEarned = results?.star_earned ?? false;
+        const questionResults: QuestionResult[] = results?.questions ?? [];
+
+        return (
+            <main className="min-h-screen bg-instacart-grey-light pb-10">
+                <header className="p-4 flex items-center bg-white sticky top-0 z-10 border-b border-instacart-border">
+                    <button onClick={() => router.push('/')} className="p-2 rounded-full hover:bg-instacart-grey-light">
+                        <ChevronLeft className="text-instacart-dark" />
+                    </button>
+                    <h1 className="flex-1 text-center font-bold text-lg text-instacart-dark">Results</h1>
+                    <div className="w-10" />
+                </header>
+
+                <div className="p-4 space-y-4">
+                    {/* Score card */}
+                    <div className={`rounded-2xl p-5 text-center ${starEarned ? 'bg-instacart-green' : 'bg-white border border-instacart-border'}`}>
+                        <p className={`text-5xl font-black ${starEarned ? 'text-white' : 'text-instacart-dark'}`}>
+                            {score.toFixed(0)}%
+                        </p>
+                        <p className={`text-sm font-semibold mt-1 ${starEarned ? 'text-white/80' : 'text-instacart-grey'}`}>
+                            {correct}/{total} correct
+                            {starEarned ? ' · Star earned!' : ''}
+                        </p>
+                        {results?.feedback_message && (
+                            <p className={`text-xs mt-2 ${starEarned ? 'text-white/70' : 'text-instacart-grey'}`}>
+                                {results.feedback_message}
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Per-question breakdown */}
+                    <div className="space-y-3">
+                        {questionResults.map((qr, idx) => (
+                            <div key={qr.question_id} className="bg-white rounded-2xl border border-instacart-border p-4 shadow-sm">
+                                <div className="flex items-start gap-2 mb-2">
+                                    {qr.is_correct
+                                        ? <CheckCircle2 size={16} className="text-instacart-green flex-shrink-0 mt-0.5" />
+                                        : <XCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />}
+                                    <p className="text-sm font-semibold text-instacart-dark leading-snug">
+                                        <span className="text-instacart-green font-black mr-1">Q{idx + 1}.</span>
+                                        {qr.question_text}
+                                    </p>
                                 </div>
-                            )}
-                        </div>
-                    ))}
+                                <div className="space-y-1.5 mt-2">
+                                    {Object.entries(qr.options).map(([key, val]) => {
+                                        const isCorrect = key === qr.correct_answer;
+                                        const isUser = key === qr.user_answer;
+                                        const isWrong = isUser && !qr.is_correct;
+                                        return (
+                                            <div
+                                                key={key}
+                                                className={`flex items-start gap-2 px-3 py-2 rounded-xl text-sm border ${
+                                                    isCorrect
+                                                        ? 'border-instacart-green bg-instacart-green-light font-semibold'
+                                                        : isWrong
+                                                        ? 'border-red-300 bg-red-50 text-red-700'
+                                                        : 'border-instacart-border text-instacart-grey'
+                                                }`}
+                                            >
+                                                <span className={`font-bold flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${
+                                                    isCorrect ? 'bg-instacart-green text-white'
+                                                    : isWrong ? 'bg-red-400 text-white'
+                                                    : 'bg-instacart-grey-light text-instacart-grey'
+                                                }`}>{key}</span>
+                                                <span className="leading-snug">{val}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                {qr.explanation && (
+                                    <p className="text-xs text-instacart-grey mt-2 bg-instacart-grey-light rounded-xl px-3 py-2 leading-snug">
+                                        {qr.explanation}
+                                    </p>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    <button
+                        onClick={() => router.push('/')}
+                        className="w-full bg-instacart-green text-white font-bold py-4 rounded-2xl text-base active:scale-95 transition-all"
+                    >
+                        Back to Home
+                    </button>
                 </div>
+            </main>
+        );
+    }
+
+    // ── Active test ──
+    const answered = Object.keys(answers).length;
+    return (
+        <main className="min-h-screen bg-instacart-grey-light pb-24">
+            <header className="p-4 flex items-center bg-white sticky top-0 z-10 border-b border-instacart-border">
+                <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-instacart-grey-light">
+                    <ChevronLeft className="text-instacart-dark" />
+                </button>
+                <h1 className="flex-1 text-center font-bold text-lg text-instacart-dark">Mock Test</h1>
+                <span className="text-xs font-bold text-instacart-grey mr-2">{answered}/{questions.length}</span>
+            </header>
+
+            <div className="p-4 space-y-4">
+                {questions.map((q, idx) => (
+                    <div key={q.id} className="bg-white rounded-2xl border border-instacart-border p-4 shadow-sm">
+                        <div className="flex items-start gap-2 mb-3">
+                            <span className="text-xs font-black text-instacart-green bg-instacart-green-light px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5">
+                                Q{idx + 1}
+                            </span>
+                            <p className="text-sm font-semibold text-instacart-dark leading-snug">{q.question_text}</p>
+                        </div>
+                        <div className="space-y-2">
+                            {Object.entries(q.options).map(([key, val]) => {
+                                const picked = answers[q.id] === key;
+                                return (
+                                    <button
+                                        key={key}
+                                        onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: key }))}
+                                        className={`w-full text-left flex items-start gap-3 px-3 py-2.5 rounded-xl border text-sm transition-all ${
+                                            picked
+                                                ? 'border-instacart-green bg-instacart-green-light font-semibold text-instacart-dark'
+                                                : 'border-instacart-border hover:border-instacart-green text-instacart-dark'
+                                        }`}
+                                    >
+                                        <span className={`font-bold flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${picked ? 'bg-instacart-green text-white' : 'bg-instacart-grey-light text-instacart-grey'}`}>
+                                            {key}
+                                        </span>
+                                        <span className="leading-snug">{val}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ))}
             </div>
 
-            <div className="p-4 bg-white border-t border-instacart-border shadow-[0_-4px_10px_rgba(0,0,0,0.05)] sticky bottom-0">
-                <div className="flex items-center space-x-4">
-                    <button
-                        disabled={currentIdx === 0}
-                        onClick={() => setCurrentIdx(prev => prev - 1)}
-                        className="px-6 py-4 card border-instacart-border text-instacart-dark font-bold active:scale-95 transition-all disabled:opacity-30"
-                    >
-                        Previous
-                    </button>
-
-                    {currentIdx === questions.length - 1 ? (
-                        <button
-                            onClick={handleSubmit}
-                            disabled={submitting}
-                            className="flex-1 py-4 bg-instacart-green text-white rounded-xl font-bold text-lg shadow-lg hover:bg-instacart-green-dark active:scale-95 transition-all flex items-center justify-center"
-                        >
-                            {submitting ? <Loader2 className="animate-spin text-white" /> : 'Submit Test'}
-                        </button>
-                    ) : (
-                        <button
-                            onClick={() => setCurrentIdx(prev => prev + 1)}
-                            className="flex-1 py-4 bg-instacart-green text-white rounded-xl font-bold text-lg shadow-lg hover:bg-instacart-green-dark active:scale-95 transition-all"
-                        >
-                            Next
-                        </button>
-                    )}
-                </div>
+            {/* Sticky submit bar */}
+            <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-instacart-border shadow-lg">
+                {error && <p className="text-xs text-red-500 mb-2 text-center">{error}</p>}
+                <button
+                    onClick={handleSubmit}
+                    disabled={answered === 0}
+                    className="w-full bg-instacart-green text-white font-bold py-4 rounded-2xl text-base active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    Submit Test ({answered}/{questions.length} answered)
+                </button>
             </div>
         </main>
     );
 }
 
-export default function MockTest() {
+export default function TestPage() {
     return (
         <Suspense fallback={
             <div className="min-h-screen flex items-center justify-center bg-white">
                 <Loader2 className="animate-spin text-instacart-green" size={48} />
             </div>
         }>
-            <MockTestContent />
+            <TestContent />
         </Suspense>
     );
 }

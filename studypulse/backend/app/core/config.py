@@ -1,8 +1,33 @@
 """Application configuration - single source of truth for all settings."""
 import os
+import logging
 from pydantic_settings import BaseSettings
 from typing import Optional
 from urllib.parse import urlparse, urlunparse, quote
+
+
+logger = logging.getLogger(__name__)
+
+
+def redact_database_url(database_url: str) -> str:
+    """Redact credentials from a database URL for safe logging."""
+    try:
+        parsed = urlparse(database_url)
+        if not parsed.scheme or not parsed.netloc:
+            return database_url
+
+        # Handle sqlite URLs and URLs without credentials
+        if parsed.scheme.startswith("sqlite") or "@" not in parsed.netloc:
+            return database_url
+
+        # netloc may be: user:pass@host:port
+        userinfo, hostinfo = parsed.netloc.rsplit("@", 1)
+        username = userinfo.split(":", 1)[0] if userinfo else ""
+        safe_userinfo = f"{username}:***" if username else "***"
+        safe_netloc = f"{safe_userinfo}@{hostinfo}"
+        return urlunparse(parsed._replace(netloc=safe_netloc))
+    except Exception:
+        return "<redacted>"
 
 
 class Settings(BaseSettings):
@@ -26,37 +51,20 @@ class Settings(BaseSettings):
         """Initialize settings and fix DATABASE_URL for asyncpg if needed."""
         super().__init__(**kwargs)
 
-        # RAILWAY CACHE BUST v3: 2026-02-17T08:50:00Z - Added argon2-cffi dependency
-        # All DB_POOL_* attributes defined above (lines 21-23)
-        # CRITICAL DEBUG: Print what DATABASE_URL we received (Railway debugging)
-        print(f"[DEBUG] DATABASE_URL received: {self.DATABASE_URL[:50]}..." if len(self.DATABASE_URL) > 50 else f"[DEBUG] DATABASE_URL received: '{self.DATABASE_URL}'")
-        print(f"[DEBUG] DATABASE_URL length: {len(self.DATABASE_URL)}")
-        print(f"[DEBUG] DATABASE_URL type: {type(self.DATABASE_URL)}")
-
         # Railway provides postgresql:// but SQLAlchemy async needs postgresql+asyncpg://
         if self.DATABASE_URL.startswith("postgresql://"):
-            print(f"[OK] Converting postgresql:// to postgresql+asyncpg://")
+            logger.info("Converting postgresql:// to postgresql+asyncpg://")
             # Convert to asyncpg dialect
             self.DATABASE_URL = self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
         # Additional check for Railway's internal URLs (postgres:// scheme)
         elif self.DATABASE_URL.startswith("postgres://"):
-            print(f"[OK] Converting postgres:// to postgresql+asyncpg://")
+            logger.info("Converting postgres:// to postgresql+asyncpg://")
             # Convert postgres:// to postgresql+asyncpg://
             self.DATABASE_URL = self.DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
 
-        # Print final DATABASE_URL
-        print(f"[DEBUG] DATABASE_URL after conversion: {self.DATABASE_URL[:50]}..." if len(self.DATABASE_URL) > 50 else f"[DEBUG] DATABASE_URL after conversion: '{self.DATABASE_URL}'")
-
-        # Validate the URL can be parsed (debug logging)
-        if not self.DATABASE_URL.startswith("sqlite"):
-            try:
-                parsed = urlparse(self.DATABASE_URL)
-                print(f"[OK] Database URL scheme: {parsed.scheme}")
-                print(f"[OK] Database host: {parsed.hostname}")
-            except Exception as e:
-                print(f"[WARNING] Could not validate DATABASE_URL: {e}")
-                print(f"   URL scheme: {self.DATABASE_URL.split('://')[0] if '://' in self.DATABASE_URL else 'unknown'}")
+        if self.DEBUG:
+            logger.debug("DATABASE_URL configured: %s", redact_database_url(self.DATABASE_URL))
 
     # ── Authentication ────────────────────────────────────────
     SECRET_KEY: str = "change-this-in-production-use-a-real-secret-key-min-32-chars"
@@ -120,8 +128,13 @@ class Settings(BaseSettings):
     # ── Scoring ───────────────────────────────────────────────
     STAR_THRESHOLD_PERCENTAGE: int = 70
 
-    # ── Optional: OpenRouter fallback ─────────────────────────
+    # ── LLM Provider Selection ────────────────────────────────
+    # Choose: "ollama" (local) or "openrouter" (API-based, cost-optimized)
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "openrouter")  # Default to OpenRouter for production
+    
+    # ── OpenRouter API (Multi-LLM fallback) ────────────────────
     OPENROUTER_API_KEY: Optional[str] = None
+    # OpenRouter automatically uses cheapest models first (DeepSeek R1 free → DeepSeek Chat → Qwen → Llama → GPT-4o-mini)
 
     # ── Supabase (Google OAuth + Password Reset) ──────────────
     SUPABASE_URL: Optional[str] = None
@@ -164,7 +177,7 @@ class Settings(BaseSettings):
 
         # Print warnings
         for warning in warnings:
-            print(f"[WARNING] {warning}")
+            logger.warning(warning)
 
         # Raise errors
         if errors:

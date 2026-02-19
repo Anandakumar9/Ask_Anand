@@ -27,14 +27,15 @@ class StudySessionCreate(BaseModel):
     """Schema for creating a study session."""
     topic_id: int
     duration_mins: int
+    previous_question_ids: List[int] = []  # Already-seen question IDs to exclude
 
     @field_validator('duration_mins')
     @classmethod
     def validate_duration(cls, v):
-        if v <= 0:
-            raise ValueError('duration_mins must be positive')
-        if v > 480:  # 8 hours max
-            raise ValueError('duration_mins cannot exceed 480 (8 hours)')
+        if v < 5:
+            raise ValueError('duration_mins must be at least 5')
+        if v > 120:
+            raise ValueError('duration_mins cannot exceed 120 (2 hours)')
         return v
 
 

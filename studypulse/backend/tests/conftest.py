@@ -20,8 +20,7 @@ from app.core.database import Base, get_db
 from app.core.security import create_access_token, get_password_hash
 from app.main import app
 from app.models.user import User
-from app.models.exam import Exam
-from app.models.topic import Topic
+from app.models.exam import Exam, Subject, Topic
 from app.models.question import Question
 
 
@@ -173,13 +172,10 @@ async def test_user(test_db: AsyncSession) -> User:
     """Create a test user in the database."""
     user = User(
         email="test@example.com",
-        username="testuser",
-        full_name="Test User",
+        name="Test User",
         hashed_password=get_password_hash("testpassword123"),
         is_active=True,
-        is_superuser=False,
-        total_stars=10,
-        current_streak=3
+        total_stars=10
     )
     test_db.add(user)
     await test_db.commit()
@@ -189,14 +185,12 @@ async def test_user(test_db: AsyncSession) -> User:
 
 @pytest.fixture
 async def admin_user(test_db: AsyncSession) -> User:
-    """Create an admin user in the database."""
+    """Create a second user in the database (admin-like for tests)."""
     user = User(
         email="admin@example.com",
-        username="admin",
-        full_name="Admin User",
+        name="Admin User",
         hashed_password=get_password_hash("adminpassword123"),
         is_active=True,
-        is_superuser=True,
         total_stars=100
     )
     test_db.add(user)
@@ -248,14 +242,30 @@ async def test_exam(test_db: AsyncSession) -> Exam:
 
 
 @pytest.fixture
-async def test_topic(test_db: AsyncSession, test_exam: Exam) -> Topic:
+async def test_subject(test_db: AsyncSession, test_exam: Exam) -> Subject:
+    """Create a test subject under an exam."""
+    subject = Subject(
+        exam_id=test_exam.id,
+        name="History",
+        description="History subject",
+        is_active=True,
+    )
+    test_db.add(subject)
+    await test_db.commit()
+    await test_db.refresh(subject)
+    return subject
+
+
+@pytest.fixture
+async def test_topic(test_db: AsyncSession, test_subject: Subject) -> Topic:
     """Create a test topic."""
     topic = Topic(
-        exam_id=test_exam.id,
+        subject_id=test_subject.id,
         name="Indian History",
         description="Ancient and Medieval Indian History",
-        difficulty="medium",
-        estimated_time_minutes=30
+        difficulty_level="medium",
+        estimated_study_mins=30,
+        is_active=True,
     )
     test_db.add(topic)
     await test_db.commit()
@@ -279,7 +289,7 @@ async def test_questions(test_db: AsyncSession, test_topic: Topic) -> list[Quest
             correct_answer="B",
             explanation="Chandragupta Maurya founded the Maurya Empire in 322 BCE.",
             difficulty="medium",
-            source="previous_year",
+            source="PREVIOUS",
             year=2020
         ),
         Question(
@@ -294,7 +304,7 @@ async def test_questions(test_db: AsyncSession, test_topic: Topic) -> list[Quest
             correct_answer="C",
             explanation="The Indus Valley Civilization was discovered in 1921 at Harappa.",
             difficulty="medium",
-            source="previous_year",
+            source="PREVIOUS",
             year=2019
         ),
         Question(
@@ -309,7 +319,7 @@ async def test_questions(test_db: AsyncSession, test_topic: Topic) -> list[Quest
             correct_answer="C",
             explanation="Shah Jahan built the Taj Mahal in memory of his wife Mumtaz Mahal.",
             difficulty="easy",
-            source="ai_generated"
+            source="AI"
         ),
     ]
 

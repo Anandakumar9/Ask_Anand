@@ -141,14 +141,16 @@ async def get_recent_activity(user_id: int, db: AsyncSession, limit: int = 10) -
     sessions = study_result.scalars().all()
     
     for session in sessions:
-        # Get topic name
-        topic_query = select(Topic).where(Topic.id == session.topic_id)
+        topic_query = select(Topic, Subject).join(Subject, Topic.subject_id == Subject.id).where(Topic.id == session.topic_id)
         topic_result = await db.execute(topic_query)
-        topic = topic_result.scalar_one_or_none()
-        
+        row = topic_result.first()
+        topic_name = row[0].name if row else "Unknown"
+        subject_name = row[1].name if row else "Unknown"
+
         activities.append(RecentActivity(
             type="study",
-            title=f"Study Session - {topic.name if topic else 'Unknown'}",
+            topic_name=topic_name,
+            subject_name=subject_name,
             duration_mins=session.actual_duration_mins,
             timestamp=session.ended_at or session.started_at
         ))
@@ -163,15 +165,18 @@ async def get_recent_activity(user_id: int, db: AsyncSession, limit: int = 10) -
     tests = test_result.scalars().all()
     
     for test in tests:
-        # Get topic name
-        topic_query = select(Topic).where(Topic.id == test.topic_id)
+        topic_query = select(Topic, Subject).join(Subject, Topic.subject_id == Subject.id).where(Topic.id == test.topic_id)
         topic_result = await db.execute(topic_query)
-        topic = topic_result.scalar_one_or_none()
-        
+        row = topic_result.first()
+        topic_name = row[0].name if row else "Unknown"
+        subject_name = row[1].name if row else "Unknown"
+
         activities.append(RecentActivity(
             type="test",
-            title=f"Mock Test - {topic.name if topic else 'Unknown'}",
+            topic_name=topic_name,
+            subject_name=subject_name,
             score=test.score_percentage,
+            percentage=test.score_percentage,
             star_earned=test.star_earned,
             timestamp=test.completed_at or test.started_at
         ))

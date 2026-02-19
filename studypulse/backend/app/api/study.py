@@ -59,7 +59,9 @@ async def start_study_session(
 
     # Trigger background question generation immediately
     asyncio.create_task(
-        _generate_and_cache_questions(data.topic_id, current_user.id, session.id)
+        _generate_and_cache_questions(
+            data.topic_id, current_user.id, session.id, data.previous_question_ids
+        )
     )
 
     logger.info(
@@ -214,72 +216,21 @@ async def complete_study_session(
     await db.commit()
     logger.info(f"Study session {session_id} completed")
 
-    # Retrieve pre-generated questions from cache
-    from app.core.cache import cache
-    cached_data = await cache.get_pregenerated_questions(
-        session.topic_id, current_user.id
-    )
-
-    # Extract questions and metadata from cache
-    questions = []
-    metadata = {}
-    if cached_data and len(cached_data) > 0:
-        # New format: [{questions: [...], metadata: {...}}]
-        if isinstance(cached_data[0], dict) and "questions" in cached_data[0]:
-            cache_entry = cached_data[0]
-            questions = cache_entry.get("questions", [])
-            metadata = cache_entry.get("metadata", {})
-            logger.info(
-                f"✅ Retrieved cache with metadata: "
-                f"{metadata.get('question_count', 0)} questions, "
-                f"gen_time={metadata.get('generation_time_seconds', 'N/A')}s"
-            )
-        else:
-            # Old format: direct question list (backward compatibility)
-            questions = cached_data
-            logger.info(f"✅ Retrieved {len(questions)} questions from cache (legacy format)")
-
-    if questions and len(questions) >= 10:
-        return {
-            "session_id": session.id,
-            "completed": True,
-            "duration_mins": session.duration_mins,
-            "actual_duration_mins": session.actual_duration_mins or session.duration_mins,
-            "ended_at": session.ended_at.isoformat() if session.ended_at else "",
-            "questions": questions[:10],  # Return exactly 10 questions
-            "total_questions": 10,
-            "cached": True,
-            "metadata": metadata,  # Include metadata in response
-        }
-    else:
-        # Fallback: generate on-demand if cache failed
-        logger.warning(f"⚠️ Cache miss for session {session_id}, generating on-demand")
-        result = await orchestrator.generate_test(
-            topic_id=session.topic_id,
-            user_id=current_user.id,
-            question_count=10,
-            db=db,
-        )
-        return {
-            "session_id": session.id,
-            "completed": True,
-            "duration_mins": session.duration_mins,
-            "actual_duration_mins": session.actual_duration_mins or session.duration_mins,
-            "ended_at": session.ended_at.isoformat() if session.ended_at else "",
-            "questions": result.get("questions", [])[:10],
-            "total_questions": len(result.get("questions", [])[:10]),
-            "cached": False,
-            "metadata": {
-                "source": "on_demand_fallback",
-                "generated_at": datetime.utcnow().isoformat(),
-            },
-        }
+    return {
+        "session_id": session.id,
+        "completed": True,
+        "duration_mins": session.duration_mins,
+        "actual_duration_mins": session.actual_duration_mins or session.duration_mins,
+        "ended_at": session.ended_at.isoformat() if session.ended_at else "",
+    }
 
 
 # ── Background question generation ────────────────────────────
 
 
-async def _generate_and_cache_questions(topic_id: int, user_id: int, session_id: int):
+async def _generate_and_cache_questions(
+    topic_id: int, user_id: int, session_id: int, previous_question_ids: list[int] | None = None
+):
     """Generate questions in background and cache them with robust error handling.
 
     Features:
@@ -344,6 +295,7 @@ async def _generate_and_cache_questions(topic_id: int, user_id: int, session_id:
                     user_id=user_id,
                     question_count=10,
                     db=db,
+                    extra_exclude_ids=previous_question_ids or [],
                 )
                 gen_time = time.time() - gen_start
 

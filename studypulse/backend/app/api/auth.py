@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.core.security import verify_password, get_password_hash, create_access_token, decode_access_token
 from app.models.user import User
 from app.schemas.user import UserCreate, UserLogin, UserResponse, UserUpdate, TokenResponse
+from app.middleware.rate_limiter import limiter, auth_limit, guest_limit
 
 router = APIRouter()
 
@@ -46,6 +47,7 @@ async def get_current_user(
 
 
 @router.post("/guest", response_model=TokenResponse)
+@limiter.limit(guest_limit)
 async def guest_login(db: AsyncSession = Depends(get_db)):
     """
     Auto-login as guest user. Creates a guest user if it doesn't exist.
@@ -81,6 +83,7 @@ async def guest_login(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit(auth_limit)
 async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     """
     Register a new user.
@@ -108,6 +111,13 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
                 detail="Phone number already registered"
             )
     
+    # Validate password strength
+    from app.core.security import validate_password_strength
+
+    valid, msg = validate_password_strength(user_data.password)
+    if not valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
+
     # Create new user
     user = User(
         email=user_data.email,
@@ -125,6 +135,7 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit(auth_limit)
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db)
@@ -198,6 +209,7 @@ async def logout(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/google", response_model=TokenResponse)
+@limiter.limit(auth_limit)
 async def google_auth(
     payload: dict = Body(...),
     db: AsyncSession = Depends(get_db),
@@ -296,6 +308,7 @@ async def _ensure_supabase_user(email: str, supabase_url: str, service_key: str)
 
 
 @router.post("/forgot-password")
+@limiter.limit(auth_limit)
 async def forgot_password(
     payload: dict = Body(...),
     db: AsyncSession = Depends(get_db),
@@ -336,6 +349,7 @@ async def forgot_password(
 
 
 @router.post("/reset-password")
+@limiter.limit(auth_limit)
 async def reset_password(
     payload: dict = Body(...),
     db: AsyncSession = Depends(get_db),

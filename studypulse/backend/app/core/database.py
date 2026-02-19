@@ -5,17 +5,6 @@ from .config import settings
 import logging
 import sys
 
-# RAILWAY DEPLOYMENT MARKER: 2026-02-16T17:30:00Z - CACHE BUST v2
-# This marker proves Railway is deploying the latest code with getattr() fixes
-print("="*80)
-print("[RAILWAY] DEPLOYMENT CHECK v2 - CACHE BUSTED")
-print("="*80)
-print(f"[OK] Code Version: 2026-02-16T17:30:00Z")
-print(f"[OK] PostgreSQL Support: ENABLED with getattr()")
-print(f"[OK] Fixed AttributeError for DB_POOL_SIZE")
-print(f"[OK] All settings use safe getattr() calls")
-print("="*80)
-
 logger = logging.getLogger(__name__)
 
 # Determine database type
@@ -177,6 +166,29 @@ async def init_db():
                     logger.warning("App will continue without demo data")
             else:
                 logger.info(f"Database already contains {exam_count} exams - skipping automatic seeding")
+
+            # Always ensure the test user exists (idempotent)
+            try:
+                from app.models.user import User
+                from app.core.security import get_password_hash
+                test_email = "test@studypulse.com"
+                result = await session.execute(select(User).where(User.email == test_email))
+                if result.scalar_one_or_none() is None:
+                    test_user = User(
+                        email=test_email,
+                        name="Test User",
+                        hashed_password=get_password_hash("Test@1234"),
+                        is_active=True,
+                        total_stars=0
+                    )
+                    session.add(test_user)
+                    await session.commit()
+                    logger.info(f"[OK] Test user created: {test_email}")
+                else:
+                    logger.info(f"[OK] Test user already exists: {test_email}")
+            except Exception as user_error:
+                logger.error(f"Failed to create test user: {user_error}")
+
     except Exception as check_error:
         logger.error(f"Error checking database for seeding: {str(check_error)}")
         import traceback
