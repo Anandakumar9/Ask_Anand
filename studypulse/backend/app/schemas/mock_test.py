@@ -28,6 +28,7 @@ class StudySessionCreate(BaseModel):
     topic_id: int
     duration_mins: int
     previous_question_ids: List[int] = []  # Already-seen question IDs to exclude
+    random_mode: bool = False  # If true, selects random questions across all topics
 
     @field_validator('duration_mins')
     @classmethod

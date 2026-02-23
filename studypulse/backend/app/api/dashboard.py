@@ -128,43 +128,27 @@ async def get_dashboard(
 
 
 async def get_recent_activity(user_id: int, db: AsyncSession, limit: int = 10) -> List[RecentActivity]:
-    """Get recent study sessions and tests."""
+    """Get recent study sessions and tests - deduplicated by topic.
+    
+    Only shows the most recent activity per topic to avoid duplicates.
+    Prioritizes tests over study sessions for the same topic.
+    """
     activities = []
+    seen_topics = set()
     
-    # Get recent study sessions
-    study_query = select(StudySession).where(
-        StudySession.user_id == user_id,
-        StudySession.completed == True
-    ).order_by(desc(StudySession.ended_at)).limit(limit)
-    
-    study_result = await db.execute(study_query)
-    sessions = study_result.scalars().all()
-    
-    for session in sessions:
-        topic_query = select(Topic, Subject).join(Subject, Topic.subject_id == Subject.id).where(Topic.id == session.topic_id)
-        topic_result = await db.execute(topic_query)
-        row = topic_result.first()
-        topic_name = row[0].name if row else "Unknown"
-        subject_name = row[1].name if row else "Unknown"
-
-        activities.append(RecentActivity(
-            type="study",
-            topic_name=topic_name,
-            subject_name=subject_name,
-            duration_mins=session.actual_duration_mins,
-            timestamp=session.ended_at or session.started_at
-        ))
-    
-    # Get recent tests
+    # Get recent tests first (prioritize tests over study sessions)
     test_query = select(MockTest).where(
         MockTest.user_id == user_id,
         MockTest.status == "completed"
-    ).order_by(desc(MockTest.completed_at)).limit(limit)
+    ).order_by(desc(MockTest.completed_at)).limit(limit * 2)
     
     test_result = await db.execute(test_query)
     tests = test_result.scalars().all()
     
     for test in tests:
+        if test.topic_id in seen_topics:
+            continue
+            
         topic_query = select(Topic, Subject).join(Subject, Topic.subject_id == Subject.id).where(Topic.id == test.topic_id)
         topic_result = await db.execute(topic_query)
         row = topic_result.first()
@@ -180,17 +164,59 @@ async def get_recent_activity(user_id: int, db: AsyncSession, limit: int = 10) -
             star_earned=test.star_earned,
             timestamp=test.completed_at or test.started_at
         ))
+        seen_topics.add(test.topic_id)
+        
+        if len(activities) >= limit:
+            break
     
-    # Sort by timestamp and limit
+    # Only get study sessions if we haven't filled the limit
+    if len(activities) < limit:
+        study_query = select(StudySession).where(
+            StudySession.user_id == user_id,
+            StudySession.completed == True
+        ).order_by(desc(StudySession.ended_at)).limit(limit * 2)
+        
+        study_result = await db.execute(study_query)
+        sessions = study_result.scalars().all()
+        
+        for session in sessions:
+            # Skip if we already have this topic
+            if session.topic_id in seen_topics:
+                continue
+            
+            topic_query = select(Topic, Subject).join(Subject, Topic.subject_id == Subject.id).where(Topic.id == session.topic_id)
+            topic_result = await db.execute(topic_query)
+            row = topic_result.first()
+            topic_name = row[0].name if row else "Unknown"
+            subject_name = row[1].name if row else "Unknown"
+
+            activities.append(RecentActivity(
+                type="study",
+                topic_name=topic_name,
+                subject_name=subject_name,
+                duration_mins=session.actual_duration_mins,
+                timestamp=session.ended_at or session.started_at
+            ))
+            seen_topics.add(session.topic_id)
+            
+            if len(activities) >= limit:
+                break
+    
+    # Sort by timestamp
     activities.sort(key=lambda x: x.timestamp, reverse=True)
     return activities[:limit]
 
 
 async def get_continue_topic(user_id: int, db: AsyncSession) -> Optional[dict]:
-    """Get the last studied topic for 'Continue Studying' feature."""
-    # Get most recent study session
+    """Get the last studied topic for 'Continue Studying' feature.
+    
+    Only returns a continue topic if there's an INCOMPLETE session.
+    Completed sessions should not show 'Resume' - user needs to start fresh.
+    """
+    # Get most recent INCOMPLETE study session only
     query = select(StudySession).where(
-        StudySession.user_id == user_id
+        StudySession.user_id == user_id,
+        StudySession.completed == False
     ).order_by(desc(StudySession.started_at)).limit(1)
     
     result = await db.execute(query)

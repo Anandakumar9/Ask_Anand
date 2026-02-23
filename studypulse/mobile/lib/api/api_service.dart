@@ -134,10 +134,11 @@ class ApiService {
   }
 
   // Study Methods
-  Future<Response> startSession(int topicId, int durationMins) async {
+  Future<Response> startSession(int topicId, int durationMins, {bool isRandomMode = false}) async {
     return _dio.post('/study/sessions', data: {
       'topic_id': topicId,
       'duration_mins': durationMins,
+      if (isRandomMode) 'random_mode': true,
     });
   }
 

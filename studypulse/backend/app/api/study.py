@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_user
@@ -39,17 +39,40 @@ async def start_study_session(
     """Start a study session and trigger background question generation.
     
     Questions are generated immediately in background and cached.
+    
+    If random_mode is true, questions will be randomly selected from all topics
+    in the selected subject.
     """
-    # Verify topic
-    topic = (
-        await db.execute(select(Topic).where(Topic.id == data.topic_id))
-    ).scalar_one_or_none()
-    if not topic:
-        raise HTTPException(status_code=404, detail="Topic not found")
+    topic = None
+    topic_name = "Random Mix"
+    
+    # Handle random mode (topic_id = -1) or regular mode
+    if data.random_mode:
+        # In random mode, we need a valid topic to get the subject
+        if data.topic_id != -1:
+            topic = (
+                await db.execute(select(Topic).where(Topic.id == data.topic_id))
+            ).scalar_one_or_none()
+        else:
+            # Find any topic to get subject context, or just use random across all
+            topic = (
+                await db.execute(select(Topic).order_by(func.random()).limit(1))
+            ).scalar_one_or_none()
+        
+        if topic:
+            topic_name = f"Random Mix - {topic.name}"
+    else:
+        # Verify topic exists for regular mode
+        topic = (
+            await db.execute(select(Topic).where(Topic.id == data.topic_id))
+        ).scalar_one_or_none()
+        if not topic:
+            raise HTTPException(status_code=404, detail="Topic not found")
+        topic_name = topic.name
 
     session = StudySession(
         user_id=current_user.id,
-        topic_id=data.topic_id,
+        topic_id=data.topic_id if not data.random_mode else (topic.id if topic else -1),
         duration_mins=data.duration_mins,
         completed=False,
     )
@@ -60,12 +83,16 @@ async def start_study_session(
     # Trigger background question generation immediately
     asyncio.create_task(
         _generate_and_cache_questions(
-            data.topic_id, current_user.id, session.id, data.previous_question_ids
+            data.topic_id if not data.random_mode else (topic.id if topic else -1), 
+            current_user.id, 
+            session.id, 
+            data.previous_question_ids,
+            random_mode=data.random_mode,
         )
     )
 
     logger.info(
-        f"Study session {session.id} started: topic={data.topic_id} "
+        f"Study session {session.id} started: topic={data.topic_id}, random={data.random_mode} "
         f"duration={data.duration_mins}min user={current_user.id} - "
         f"Background question generation triggered"
     )
@@ -73,10 +100,11 @@ async def start_study_session(
     return {
         "session_id": session.id,
         "user_id": current_user.id,
-        "topic_id": data.topic_id,
-        "topic_name": topic.name,
+        "topic_id": data.topic_id if not data.random_mode else (topic.id if topic else -1),
+        "topic_name": topic_name,
         "duration_mins": data.duration_mins,
         "completed": False,
+        "random_mode": data.random_mode,
         "started_at": session.started_at.isoformat() if session.started_at else "",
     }
 
@@ -229,7 +257,7 @@ async def complete_study_session(
 
 
 async def _generate_and_cache_questions(
-    topic_id: int, user_id: int, session_id: int, previous_question_ids: list[int] | None = None
+    topic_id: int, user_id: int, session_id: int, previous_question_ids: list[int] | None = None, random_mode: bool = False
 ):
     """Generate questions in background and cache them with robust error handling.
 
@@ -239,6 +267,7 @@ async def _generate_and_cache_questions(
     - Detailed timing information
     - Edge case handling (no questions, Ollama down, etc.)
     - Metadata storage with questions
+    - Random mode support for mixed questions from multiple topics
 
     This runs immediately when session starts.
     Questions are ready when session ends.
@@ -277,6 +306,16 @@ async def _generate_and_cache_questions(
                     await cache.set_pregen_status(topic_id, user_id, "failed")
                     return
 
+                # Handle random mode - get all topics in the subject
+                all_topics = [topic]
+                if random_mode:
+                    # Get all topics from the same subject
+                    all_topics_result = await db.execute(
+                        select(Topic).where(Topic.subject_id == topic.subject_id)
+                    )
+                    all_topics = list(all_topics_result.scalars().all())
+                    logger.info(f"🎲 Random mode: Found {len(all_topics)} topics in subject {topic.subject_id}")
+
                 # Check Ollama availability (if it's being used)
                 try:
                     from app.core.ollama import ollama_client
@@ -290,26 +329,58 @@ async def _generate_and_cache_questions(
 
                 # Generate questions (target 10, but accept whatever is available)
                 gen_start = time.time()
-                result = await orchestrator.generate_test(
-                    topic_id=topic_id,
-                    user_id=user_id,
-                    question_count=10,
-                    db=db,
-                    extra_exclude_ids=previous_question_ids or [],
-                )
+                
+                # For random mode, generate questions from all topics
+                if random_mode and len(all_topics) > 1:
+                    all_questions = []
+                    questions_per_topic = max(1, 10 // len(all_topics))
+                    
+                    for t in all_topics:
+                        try:
+                            result = await orchestrator.generate_test(
+                                topic_id=t.id,
+                                user_id=user_id,
+                                question_count=questions_per_topic,
+                                db=db,
+                                extra_exclude_ids=previous_question_ids or [],
+                            )
+                            all_questions.extend(result.get("questions", []))
+                        except Exception as e:
+                            logger.warning(f"⚠️ Failed to get questions for topic {t.id}: {e}")
+                            continue
+                    
+                    # Shuffle questions for random mix
+                    import random
+                    random.shuffle(all_questions)
+                    questions = all_questions[:10]
+                    topic_name = f"Random Mix - {topic.subject.name}" if topic.subject else "Random Mix"
+                    result_source = "random_mix"
+                else:
+                    # Regular mode - single topic
+                    result = await orchestrator.generate_test(
+                        topic_id=topic_id,
+                        user_id=user_id,
+                        question_count=10,
+                        db=db,
+                        extra_exclude_ids=previous_question_ids or [],
+                    )
+                    questions = result.get("questions", [])
+                    topic_name = topic.name
+                    result_source = result.get("source", "unknown")
+                
                 gen_time = time.time() - gen_start
 
-                questions = result.get("questions", [])
                 metadata = {
                     "session_id": session_id,
                     "topic_id": topic_id,
-                    "topic_name": topic.name,
+                    "topic_name": topic_name,
                     "user_id": user_id,
                     "generated_at": datetime.utcnow().isoformat(),
                     "generation_time_seconds": round(gen_time, 2),
                     "question_count": len(questions),
+                    "random_mode": random_mode,
                     "attempt_number": retry_count + 1,
-                    "source": result.get("source", "unknown"),
+                    "source": result_source,
                 }
 
                 logger.info(

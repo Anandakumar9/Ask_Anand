@@ -1,0 +1,14 @@
+{
+  "name": "studypulse-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "flutter run",
+    "build": "flutter build",
+    "build-web": "flutter build web",
+    "analyze": "flutter analyze",
+    "test": "flutter test"
+  },
+  "devDependencies": {},
+  "dependencies": {}
+}

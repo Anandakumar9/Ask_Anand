@@ -622,6 +622,8 @@ class QuestionOrchestrator:
                 "difficulty": r.difficulty or "medium",
                 "source": r.source or "PREVIOUS",
                 "year": r.year,
+                "question_images": r.question_images or [],
+                "explanation_images": r.explanation_images or [],
             }
             for r in rows
         ]
@@ -645,6 +647,8 @@ class QuestionOrchestrator:
                     explanation=q.get("explanation", ""),
                     difficulty=q.get("difficulty", "medium"),
                     source="AI",
+                    question_images=q.get("question_images", []),
+                    explanation_images=q.get("explanation_images", []),
                 )
                 db.add(row)
 
@@ -663,6 +667,8 @@ class QuestionOrchestrator:
                             "explanation": row.explanation or "",
                             "difficulty": row.difficulty or "medium",
                             "source": "AI",
+                            "question_images": row.question_images or [],
+                            "explanation_images": row.explanation_images or [],
                         }
                     )
 
@@ -683,6 +689,8 @@ class QuestionOrchestrator:
                             "explanation": q.get("explanation", ""),
                             "difficulty": q.get("difficulty", "medium"),
                             "source": "AI",
+                            "question_images": q.get("question_images", []),
+                            "explanation_images": q.get("explanation_images", []),
                         }
                     )
         return saved
@@ -698,6 +706,8 @@ class QuestionOrchestrator:
                 "difficulty": q.get("difficulty", "medium"),
                 "source": q.get("source", "PREVIOUS"),
                 "marks": q.get("marks", 1),
+                "question_images": q.get("question_images", []),
+                "explanation_images": q.get("explanation_images", []),
             }
             for q in questions
         ]
