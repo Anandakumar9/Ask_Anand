@@ -6,21 +6,36 @@ from app.core.database import Base
 
 
 class Question(Base):
-    """Question model for storing exam questions."""
+    """Question model for storing exam questions.
+    
+    Supports both text-only and image-enhanced questions for medical entrance exams.
+    Images can be attached to:
+    - The question itself (question_images)
+    - Individual options (stored in options JSON)
+    - The explanation (explanation_images)
+    """
     __tablename__ = "questions"
     
     id = Column(Integer, primary_key=True, index=True)
     topic_id = Column(Integer, ForeignKey("topics.id"), nullable=False)
     question_text = Column(Text, nullable=False)
-    options = Column(JSON, nullable=False)  # {"A": "...", "B": "...", "C": "...", "D": "..."}
+    options = Column(JSON, nullable=False)  # {"A": "...", "B": "...", "C": "...", "D": "..."} or {"A": {"text": "...", "image": "url"}, ...}
     correct_answer = Column(String(1), nullable=False)  # "A", "B", "C", or "D"
     explanation = Column(Text)
     source = Column(String(20), default="PREVIOUS")  # "PREVIOUS" or "AI"
     year = Column(Integer, nullable=True)  # Year of the exam (for previous year questions)
     difficulty = Column(String(20), default="medium")  # easy, medium, hard
+    
+    # Image support for medical entrance exams
+    question_images = Column(JSON, default=list)  # ["url1", "url2", ...] - Images attached to question
+    explanation_images = Column(JSON, default=list)  # ["url1", "url2", ...] - Images in explanation
+    audio_url = Column(String(500), nullable=True)  # Audio explanation URL
+    video_url = Column(String(500), nullable=True)  # Video explanation URL
+    
+    # Rating and validation
     avg_rating = Column(Float, default=0.0)  # Average rating from users (1-10 scale)
     rating_count = Column(Integer, default=0)  # Total number of ratings
-    metadata_json = Column(JSON, default={})  # Stores prompt_version, generation_time, etc.
+    metadata_json = Column(JSON, default=dict)  # Stores prompt_version, generation_time, etc.
     is_validated = Column(Boolean, default=False)  # Whether question has been validated
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

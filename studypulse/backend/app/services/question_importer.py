@@ -2,7 +2,7 @@
 import csv
 import io
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union, Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,12 +15,50 @@ logger = logging.getLogger(__name__)
 
 
 class QuestionImporter:
-    """Handles question import operations from various sources."""
+    """Handles question import operations from various sources.
+    
+    Supports:
+    - Text-only questions
+    - Questions with images (question_images, explanation_images)
+    - Questions with option images (stored in options JSON)
+    - Audio/video explanations
+    """
+
+    def _normalize_options(self, options: Dict[str, Union[str, Dict, Any]]) -> Dict[str, Any]:
+        """Normalize options to a consistent format.
+        
+        Handles both:
+        - Simple text: {"A": "text", "B": "text", ...}
+        - With images: {"A": {"text": "text", "image": "url"}, ...}
+        
+        Returns a consistent dict format for database storage.
+        """
+        normalized = {}
+        for key, value in options.items():
+            if isinstance(value, str):
+                # Simple text option
+                normalized[key] = value
+            elif isinstance(value, dict):
+                # Option with potential image
+                normalized[key] = {
+                    "text": value.get("text", ""),
+                    "image": value.get("image") if value.get("image") else None
+                }
+            elif hasattr(value, 'text'):
+                # OptionData object
+                normalized[key] = {
+                    "text": value.text,
+                    "image": value.image if hasattr(value, 'image') else None
+                }
+            else:
+                normalized[key] = str(value)
+        
+        return normalized
 
     async def import_single(
         self, question: QuestionImport, db: AsyncSession
     ) -> tuple[bool, Optional[int], str]:
-        """Import a single question.
+        """Import a single question with image support.
 
         Returns: (success: bool, question_id: Optional[int], error: str)
         """
@@ -30,16 +68,25 @@ class QuestionImporter:
             if not topic:
                 return False, None, f"Topic ID {question.topic_id} not found"
 
-            # Create question
+            # Normalize options to handle both text and image-enhanced formats
+            normalized_options = self._normalize_options(question.options)
+
+            # Create question with image support
             db_question = Question(
                 topic_id=question.topic_id,
                 question_text=question.question_text.strip(),
-                options=question.options,
+                options=normalized_options,
                 correct_answer=question.correct_answer.upper(),
                 explanation=question.explanation.strip() if question.explanation else None,
                 source=question.source,
                 year=question.year,
                 difficulty=question.difficulty,
+                # Image support fields
+                question_images=question.question_images or [],
+                explanation_images=question.explanation_images or [],
+                audio_url=question.audio_url,
+                video_url=question.video_url,
+                # Validation
                 is_validated=False,  # Manually imported questions need validation
                 is_active=True,
             )

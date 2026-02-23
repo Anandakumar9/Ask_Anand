@@ -97,6 +97,8 @@ slowapi==0.1.9
 # Monitoring
 sentry-sdk[fastapi]==1.40.0
 
-# Production database
-psycopg2-binary==2.9.9
-asyncpg==0.29.0
+# Production database (PostgreSQL) - Optional for local development
+# On Windows, these can fail to build. Use SQLite for local dev (aiosqlite above)
+# Uncomment these for production deployment:
+# psycopg2-binary==2.9.9
+# asyncpg==0.29.0

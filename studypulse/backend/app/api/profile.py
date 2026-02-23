@@ -194,7 +194,7 @@ async def get_profile_stats(
             }
         }
 
-        # --- Recent Performance (Last 10 tests) ---
+        # --- Recent Performance (Last 10 tests, deduplicated by topic) ---
         recent_tests_query = (
             select(MockTest)
             .where(
@@ -204,22 +204,44 @@ async def get_profile_stats(
                 )
             )
             .order_by(MockTest.completed_at.desc())
-            .limit(10)
+            .limit(20)  # Get more to allow for deduplication
         )
 
         recent_tests = (await db.execute(recent_tests_query)).scalars().all()
+        
+        # Deduplicate by topic_id - only keep the most recent test per topic
+        seen_topics = set()
+        deduped_tests = []
+        for test in recent_tests:
+            if test.topic_id not in seen_topics:
+                seen_topics.add(test.topic_id)
+                deduped_tests.append(test)
+            if len(deduped_tests) >= 4:  # Limit to 4 unique topics
+                break
 
-        profile["recent_performance"] = [
-            {
+        # Get topic names for the tests - single query to avoid N+1 problem
+        topic_ids = [t.topic_id for t in deduped_tests if t.topic_id]
+        topics_map = {}
+        if topic_ids:
+            topics_result = await db.execute(select(Topic).where(Topic.id.in_(topic_ids)))
+            topics_map = {t.id: t.name for t in topics_result.scalars().all()}
+        
+        recent_performance = []
+        for test in deduped_tests:
+            topic_name = topics_map.get(test.topic_id, "Unknown") if test.topic_id else "Unknown"
+            
+            recent_performance.append({
                 "test_id": test.id,
+                "topic_id": test.topic_id,
+                "topic_name": topic_name,
                 "score": round(test.score_percentage, 1),
                 "total_questions": test.total_questions,
                 "correct_answers": test.correct_answers,
                 "date": test.completed_at.isoformat() if test.completed_at else test.started_at.isoformat(),
                 "star_earned": test.star_earned
-            }
-            for test in recent_tests
-        ]
+            })
+        
+        profile["recent_performance"] = recent_performance
 
         # --- Best Performance (Highest scoring test) ---
         best_test_query = (

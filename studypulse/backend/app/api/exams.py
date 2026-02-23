@@ -38,19 +38,25 @@ async def list_exams(
     result = await db.execute(query)
     exams = result.scalars().all()
     
-    # Add subject count
+    # Add subject count and total questions
     exam_list = []
     for exam in exams:
         count_query = select(func.count(Subject.id)).where(Subject.exam_id == exam.id)
         count_result = await db.execute(count_query)
-        subject_count = count_result.scalar()
+        subject_count = count_result.scalar() or 0
+        
+        # Get total questions across all topics using a single query
+        q_count_query = select(func.count(Question.id)).join(Topic).join(Subject).where(Subject.exam_id == exam.id)
+        q_count_result = await db.execute(q_count_query)
+        total_questions = q_count_result.scalar() or 0
         
         exam_list.append(ExamBrief(
             id=exam.id,
             name=exam.name,
             category=exam.category,
             icon_url=exam.icon_url,
-            subject_count=subject_count
+            subject_count=subject_count,
+            total_questions=total_questions
         ))
     
     return exam_list

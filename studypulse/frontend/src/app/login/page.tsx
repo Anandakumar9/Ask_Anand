@@ -6,6 +6,7 @@ import { useStore } from '@/store/useStore';
 import { authApi } from '@/services/api';
 import { Loader2 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
+import { useThemeStore } from '@/store/themeStore';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -16,6 +17,7 @@ type Mode = 'login' | 'register' | 'forgot' | 'reset';
 export default function Login() {
     const router = useRouter();
     const { setUser, setToken, hasHydrated, token } = useStore();
+    const { isDarkMode } = useThemeStore();
     const [mode, setMode] = useState<Mode>('login');
     const [email, setEmail] = useState('');
     const [name, setName] = useState('');
@@ -186,7 +188,7 @@ export default function Login() {
 
     if (!mounted || !hasHydrated) {
         return (
-            <main className="min-h-screen bg-white flex items-center justify-center">
+            <main className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-instacart-dark-bg' : 'bg-white'}`}>
                 <div className="text-center">
                     <Loader2 className="animate-spin text-instacart-green mx-auto mb-4" size={48} />
                     <p className="text-instacart-grey font-semibold">Loading StudyPulse...</p>
@@ -197,7 +199,7 @@ export default function Login() {
 
     if (googleLoading) {
         return (
-            <main className="min-h-screen bg-white flex items-center justify-center">
+            <main className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-instacart-dark-bg' : 'bg-white'}`}>
                 <div className="text-center">
                     <Loader2 className="animate-spin text-instacart-green mx-auto mb-4" size={48} />
                     <p className="text-instacart-grey font-semibold">Signing you in with Google...</p>
@@ -209,7 +211,7 @@ export default function Login() {
     // ── Set New Password screen (after clicking reset email link) ───────────────
     if (mode === 'reset') {
         return (
-            <main className="min-h-screen bg-white flex flex-col p-6 items-center justify-center">
+            <main className={`min-h-screen flex flex-col p-6 items-center justify-center ${isDarkMode ? 'bg-instacart-dark-bg' : 'bg-white'}`}>
                 <div className="w-full max-w-md space-y-6">
                     <div className="text-center">
                         <h1 className="text-3xl font-black text-instacart-green italic tracking-tighter mb-2">StudyPulse</h1>
@@ -217,12 +219,16 @@ export default function Login() {
                     </div>
                     <form onSubmit={handleResetPassword} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-bold text-instacart-dark mb-1 ml-1">New Password</label>
+                            <label className={`block text-sm font-bold mb-1 ml-1 ${isDarkMode ? 'text-instacart-dark-text' : 'text-instacart-dark'}`}>New Password</label>
                             <input
                                 type="password"
                                 value={newPassword}
                                 onChange={e => setNewPassword(e.target.value)}
-                                className="w-full px-4 py-4 rounded-xl border border-instacart-border focus:ring-2 focus:ring-instacart-green focus:outline-none transition-all"
+                                className={`w-full px-4 py-4 rounded-xl border focus:ring-2 focus:ring-instacart-green focus:outline-none transition-all ${
+                                    isDarkMode 
+                                        ? 'bg-instacart-dark-card border-instacart-dark-border text-instacart-dark-text placeholder-instacart-dark-text-secondary' 
+                                        : 'bg-white border-instacart-border text-instacart-dark'
+                                }`}
                                 placeholder="Min 8 chars, 1 digit, 1 special char"
                                 required
                             />
@@ -244,7 +250,7 @@ export default function Login() {
 
     // ── Main login / register / forgot screens ──────────────────────────────────
     return (
-        <main className="min-h-screen bg-white flex flex-col p-6 items-center justify-center">
+        <main className={`min-h-screen flex flex-col p-6 items-center justify-center ${isDarkMode ? 'bg-instacart-dark-bg' : 'bg-white'}`}>
             <div className="w-full max-w-md space-y-6">
                 {/* Header */}
                 <div className="text-center">
@@ -262,10 +268,14 @@ export default function Login() {
                         type="button"
                         onClick={handleGoogleSignIn}
                         disabled={googleLoading}
-                        className="w-full py-3.5 bg-white border-2 border-instacart-border rounded-xl font-bold text-instacart-dark flex items-center justify-center gap-3 hover:bg-gray-50 active:scale-95 transition-all shadow-sm"
+                        className={`w-full py-3.5 border-2 rounded-xl font-bold flex items-center justify-center gap-3 hover:bg-gray-50 active:scale-95 transition-all shadow-sm ${
+                            isDarkMode 
+                                ? 'bg-instacart-dark-card border-instacart-dark-border text-instacart-dark-text' 
+                                : 'bg-white border-instacart-border text-instacart-dark'
+                        }`}
                     >
                         <svg width="20" height="20" viewBox="0 0 48 48">
-                            <path fill="#EA4335" d="M24 9.5c3.2 0 5.9 1.1 8.1 2.9l6-6C34.3 3.1 29.5 1 24 1 14.8 1 6.9 6.6 3.4 14.6l7 5.4C12.1 13.8 17.6 9.5 24 9.5z"/>
+                            <path fill="#EA4335" d="M24 9.5c3.2 0 5.9 1.1 8.1 2.9l6-6C34.3 3.1 29.5 1 24 1 14.8 1 6.9 6.6 3.4 14.6l7 5.4 13.8C12.1 17.6 9.5 24 9.5z"/>
                             <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 6.9-10.1 6.9-17z"/>
                             <path fill="#FBBC05" d="M10.4 28.4A14.7 14.7 0 0 1 9.5 24c0-1.5.3-3 .7-4.4l-7-5.4A23.8 23.8 0 0 0 .5 24c0 3.8.9 7.4 2.7 10.6l7.2-6.2z"/>
                             <path fill="#34A853" d="M24 47c5.5 0 10.1-1.8 13.4-4.9l-7.5-5.8c-1.8 1.2-4.2 1.9-5.9 1.9-6.3 0-11.7-4.2-13.6-9.9l-7.2 6.2C6.8 41.3 14.8 47 24 47z"/>
@@ -277,9 +287,9 @@ export default function Login() {
                 {/* Divider */}
                 {mode !== 'forgot' && (
                     <div className="flex items-center gap-3">
-                        <div className="flex-1 h-px bg-instacart-border" />
+                        <div className={`flex-1 h-px ${isDarkMode ? 'bg-instacart-dark-border' : 'bg-instacart-border'}`} />
                         <span className="text-xs font-bold text-instacart-grey uppercase tracking-widest">or</span>
-                        <div className="flex-1 h-px bg-instacart-border" />
+                        <div className={`flex-1 h-px ${isDarkMode ? 'bg-instacart-dark-border' : 'bg-instacart-border'}`} />
                     </div>
                 )}
 
@@ -290,12 +300,16 @@ export default function Login() {
                 >
                     {mode === 'register' && (
                         <div>
-                            <label className="block text-sm font-bold text-instacart-dark mb-1 ml-1">Full Name</label>
+                            <label className={`block text-sm font-bold mb-1 ml-1 ${isDarkMode ? 'text-instacart-dark-text' : 'text-instacart-dark'}`}>Full Name</label>
                             <input
                                 type="text"
                                 value={name}
                                 onChange={e => setName(e.target.value)}
-                                className="w-full px-4 py-4 rounded-xl border border-instacart-border focus:ring-2 focus:ring-instacart-green focus:outline-none transition-all"
+                                className={`w-full px-4 py-4 rounded-xl border focus:ring-2 focus:ring-instacart-green focus:outline-none transition-all ${
+                                    isDarkMode 
+                                        ? 'bg-instacart-dark-card border-instacart-dark-border text-instacart-dark-text placeholder-instacart-dark-text-secondary' 
+                                        : 'bg-white border-instacart-border text-instacart-dark'
+                                }`}
                                 placeholder="Enter your full name"
                                 required
                             />
@@ -303,12 +317,16 @@ export default function Login() {
                     )}
 
                     <div>
-                        <label className="block text-sm font-bold text-instacart-dark mb-1 ml-1">Email</label>
+                        <label className={`block text-sm font-bold mb-1 ml-1 ${isDarkMode ? 'text-instacart-dark-text' : 'text-instacart-dark'}`}>Email</label>
                         <input
                             type="email"
                             value={email}
                             onChange={e => setEmail(e.target.value)}
-                            className="w-full px-4 py-4 rounded-xl border border-instacart-border focus:ring-2 focus:ring-instacart-green focus:outline-none transition-all"
+                            className={`w-full px-4 py-4 rounded-xl border focus:ring-2 focus:ring-instacart-green focus:outline-none transition-all ${
+                                isDarkMode 
+                                    ? 'bg-instacart-dark-card border-instacart-dark-border text-instacart-dark-text placeholder-instacart-dark-text-secondary' 
+                                    : 'bg-white border-instacart-border text-instacart-dark'
+                            }`}
                             placeholder="Enter your email"
                             required
                         />
@@ -316,12 +334,16 @@ export default function Login() {
 
                     {mode !== 'forgot' && (
                         <div>
-                            <label className="block text-sm font-bold text-instacart-dark mb-1 ml-1">Password</label>
+                            <label className={`block text-sm font-bold mb-1 ml-1 ${isDarkMode ? 'text-instacart-dark-text' : 'text-instacart-dark'}`}>Password</label>
                             <input
                                 type="password"
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
-                                className="w-full px-4 py-4 rounded-xl border border-instacart-border focus:ring-2 focus:ring-instacart-green focus:outline-none transition-all"
+                                className={`w-full px-4 py-4 rounded-xl border focus:ring-2 focus:ring-instacart-green focus:outline-none transition-all ${
+                                    isDarkMode 
+                                        ? 'bg-instacart-dark-card border-instacart-dark-border text-instacart-dark-text placeholder-instacart-dark-text-secondary' 
+                                        : 'bg-white border-instacart-border text-instacart-dark'
+                                }`}
                                 placeholder={mode === 'register' ? 'Min 8 chars, 1 digit, 1 special char' : 'Enter your password'}
                                 required
                             />

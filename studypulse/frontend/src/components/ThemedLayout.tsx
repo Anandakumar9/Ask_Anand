@@ -16,6 +16,16 @@ export default function ThemedLayout({
     setMounted(true)
   }, [])
 
+  useEffect(() => {
+    if (mounted) {
+      if (isDarkMode) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+    }
+  }, [isDarkMode, mounted])
+
   if (!mounted) {
     return <>{children}</>
   }
@@ -28,8 +38,16 @@ export default function ThemedLayout({
         minHeight: '100vh',
       }}
     >
-      {/* Dark mode toggle in top right */}
-      <div className="absolute top-4 right-4 z-50">
+      {/* Dark mode toggle - fixed position in top right corner */}
+      <div 
+        className="fixed top-4 right-4 z-[9999]" 
+        style={{ 
+          position: 'fixed',
+          top: '16px',
+          right: '16px',
+          zIndex: 9999,
+        }}
+      >
         <DarkModeToggle />
       </div>
       {children}

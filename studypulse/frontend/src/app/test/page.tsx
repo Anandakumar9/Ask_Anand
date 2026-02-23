@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { ChevronLeft, Loader2, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { testApi } from '@/services/api';
+import { useThemeStore } from '@/store/themeStore';
 
 interface Question {
     id: number;
@@ -29,6 +30,7 @@ function TestContent() {
     const searchParams = useSearchParams();
     const topicId = searchParams.get('topicId');
     const sessionId = searchParams.get('sessionId');
+    const { isDarkMode } = useThemeStore();
 
     const [phase, setPhase] = useState<'loading' | 'active' | 'submitting' | 'results'>('loading');
     const [testId, setTestId] = useState<number | null>(null);
@@ -92,9 +94,9 @@ function TestContent() {
     // ── Loading ──
     if (phase === 'loading') {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-4">
+            <div className={`min-h-screen flex flex-col items-center justify-center gap-4 ${isDarkMode ? 'bg-instacart-dark-bg' : 'bg-white'}`}>
                 <Loader2 className="animate-spin text-instacart-green" size={48} />
-                <p className="text-instacart-grey text-sm">Loading questions…</p>
+                <p className={`text-sm ${isDarkMode ? 'text-instacart-dark-text-secondary' : 'text-instacart-grey'}`}>Loading questions…</p>
             </div>
         );
     }
@@ -102,9 +104,9 @@ function TestContent() {
     // ── Submitting ──
     if (phase === 'submitting') {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-4">
+            <div className={`min-h-screen flex flex-col items-center justify-center gap-4 ${isDarkMode ? 'bg-instacart-dark-bg' : 'bg-white'}`}>
                 <Loader2 className="animate-spin text-instacart-green" size={48} />
-                <p className="text-instacart-grey text-sm">Submitting your answers…</p>
+                <p className={`text-sm ${isDarkMode ? 'text-instacart-dark-text-secondary' : 'text-instacart-grey'}`}>Submitting your answers…</p>
             </div>
         );
     }
@@ -113,12 +115,12 @@ function TestContent() {
     if (phase === 'results') {
         if (error && !results) {
             return (
-                <main className="min-h-screen bg-instacart-grey-light">
-                    <header className="p-4 flex items-center bg-white border-b border-instacart-border">
-                        <button onClick={() => router.push('/')} className="p-2 rounded-full hover:bg-instacart-grey-light">
-                            <ChevronLeft className="text-instacart-dark" />
+                <main className={`min-h-screen ${isDarkMode ? 'bg-instacart-dark-bg' : 'bg-instacart-grey-light'}`}>
+                    <header className={`p-4 flex items-center border-b ${isDarkMode ? 'bg-instacart-dark-card border-instacart-dark-border' : 'bg-white border-instacart-border'}`}>
+                        <button onClick={() => router.push('/')} className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-instacart-dark-border' : 'hover:bg-instacart-grey-light'}`} title="Go to home">
+                            <ChevronLeft className={isDarkMode ? 'text-instacart-dark-text' : 'text-instacart-dark'} />
                         </button>
-                        <h1 className="flex-1 text-center font-bold text-lg text-instacart-dark">Mock Test</h1>
+                        <h1 className={`flex-1 text-center font-bold text-lg ${isDarkMode ? 'text-instacart-dark-text' : 'text-instacart-dark'}`}>Mock Test</h1>
                         <div className="w-10" />
                     </header>
                     <div className="p-4">
@@ -141,27 +143,27 @@ function TestContent() {
         const questionResults: QuestionResult[] = results?.questions ?? [];
 
         return (
-            <main className="min-h-screen bg-instacart-grey-light pb-10">
-                <header className="p-4 flex items-center bg-white sticky top-0 z-10 border-b border-instacart-border">
-                    <button onClick={() => router.push('/')} className="p-2 rounded-full hover:bg-instacart-grey-light">
-                        <ChevronLeft className="text-instacart-dark" />
+            <main className={`min-h-screen pb-10 ${isDarkMode ? 'bg-instacart-dark-bg' : 'bg-instacart-grey-light'}`}>
+                <header className={`p-4 flex items-center sticky top-0 z-10 border-b ${isDarkMode ? 'bg-instacart-dark-card border-instacart-dark-border' : 'bg-white border-instacart-border'}`}>
+                    <button onClick={() => router.push('/')} className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-instacart-dark-border' : 'hover:bg-instacart-grey-light'}`} title="Go to home">
+                        <ChevronLeft className={isDarkMode ? 'text-instacart-dark-text' : 'text-instacart-dark'} />
                     </button>
-                    <h1 className="flex-1 text-center font-bold text-lg text-instacart-dark">Results</h1>
+                    <h1 className={`flex-1 text-center font-bold text-lg ${isDarkMode ? 'text-instacart-dark-text' : 'text-instacart-dark'}`}>Results</h1>
                     <div className="w-10" />
                 </header>
 
                 <div className="p-4 space-y-4">
                     {/* Score card */}
-                    <div className={`rounded-2xl p-5 text-center ${starEarned ? 'bg-instacart-green' : 'bg-white border border-instacart-border'}`}>
-                        <p className={`text-5xl font-black ${starEarned ? 'text-white' : 'text-instacart-dark'}`}>
+                    <div className={`rounded-2xl p-5 text-center ${starEarned ? 'bg-instacart-green' : isDarkMode ? 'bg-instacart-dark-card border border-instacart-dark-border' : 'bg-white border border-instacart-border'}`}>
+                        <p className={`text-5xl font-black ${starEarned ? 'text-white' : isDarkMode ? 'text-instacart-dark-text' : 'text-instacart-dark'}`}>
                             {score.toFixed(0)}%
                         </p>
-                        <p className={`text-sm font-semibold mt-1 ${starEarned ? 'text-white/80' : 'text-instacart-grey'}`}>
+                        <p className={`text-sm font-semibold mt-1 ${starEarned ? 'text-white/80' : isDarkMode ? 'text-instacart-dark-text-secondary' : 'text-instacart-grey'}`}>
                             {correct}/{total} correct
                             {starEarned ? ' · Star earned!' : ''}
                         </p>
                         {results?.feedback_message && (
-                            <p className={`text-xs mt-2 ${starEarned ? 'text-white/70' : 'text-instacart-grey'}`}>
+                            <p className={`text-xs mt-2 ${starEarned ? 'text-white/70' : isDarkMode ? 'text-instacart-dark-text-secondary' : 'text-instacart-grey'}`}>
                                 {results.feedback_message}
                             </p>
                         )}
@@ -170,12 +172,12 @@ function TestContent() {
                     {/* Per-question breakdown */}
                     <div className="space-y-3">
                         {questionResults.map((qr, idx) => (
-                            <div key={qr.question_id} className="bg-white rounded-2xl border border-instacart-border p-4 shadow-sm">
+                            <div key={qr.question_id} className={`rounded-2xl border p-4 shadow-sm ${isDarkMode ? 'bg-instacart-dark-card border-instacart-dark-border' : 'bg-white border-instacart-border'}`}>
                                 <div className="flex items-start gap-2 mb-2">
                                     {qr.is_correct
                                         ? <CheckCircle2 size={16} className="text-instacart-green flex-shrink-0 mt-0.5" />
                                         : <XCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />}
-                                    <p className="text-sm font-semibold text-instacart-dark leading-snug">
+                                    <p className={`text-sm font-semibold leading-snug ${isDarkMode ? 'text-instacart-dark-text' : 'text-instacart-dark'}`}>
                                         <span className="text-instacart-green font-black mr-1">Q{idx + 1}.</span>
                                         {qr.question_text}
                                     </p>
@@ -193,24 +195,23 @@ function TestContent() {
                                                         ? 'border-instacart-green bg-instacart-green-light font-semibold'
                                                         : isWrong
                                                         ? 'border-red-300 bg-red-50 text-red-700'
-                                                        : 'border-instacart-border text-instacart-grey'
+                                                        : isDarkMode
+                                                            ? 'border-instacart-dark-border text-instacart-dark-text-secondary'
+                                                            : 'border-instacart-border text-instacart-grey'
                                                 }`}
                                             >
                                                 <span className={`font-bold flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${
                                                     isCorrect ? 'bg-instacart-green text-white'
                                                     : isWrong ? 'bg-red-400 text-white'
-                                                    : 'bg-instacart-grey-light text-instacart-grey'
+                                                    : isDarkMode
+                                                        ? 'bg-instacart-dark-border text-instacart-dark-text-secondary'
+                                                        : 'bg-instacart-grey-light text-instacart-grey'
                                                 }`}>{key}</span>
                                                 <span className="leading-snug">{val}</span>
                                             </div>
                                         );
                                     })}
                                 </div>
-                                {qr.explanation && (
-                                    <p className="text-xs text-instacart-grey mt-2 bg-instacart-grey-light rounded-xl px-3 py-2 leading-snug">
-                                        {qr.explanation}
-                                    </p>
-                                )}
                             </div>
                         ))}
                     </div>
@@ -229,23 +230,23 @@ function TestContent() {
     // ── Active test ──
     const answered = Object.keys(answers).length;
     return (
-        <main className="min-h-screen bg-instacart-grey-light pb-24">
-            <header className="p-4 flex items-center bg-white sticky top-0 z-10 border-b border-instacart-border">
-                <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-instacart-grey-light">
-                    <ChevronLeft className="text-instacart-dark" />
+        <main className={`min-h-screen pb-24 ${isDarkMode ? 'bg-instacart-dark-bg' : 'bg-instacart-grey-light'}`}>
+            <header className={`p-4 flex items-center sticky top-0 z-10 border-b ${isDarkMode ? 'bg-instacart-dark-card border-instacart-dark-border' : 'bg-white border-instacart-border'}`}>
+                <button onClick={() => router.back()} className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-instacart-dark-border' : 'hover:bg-instacart-grey-light'}`} title="Go back">
+                    <ChevronLeft className={isDarkMode ? 'text-instacart-dark-text' : 'text-instacart-dark'} />
                 </button>
-                <h1 className="flex-1 text-center font-bold text-lg text-instacart-dark">Mock Test</h1>
-                <span className="text-xs font-bold text-instacart-grey mr-2">{answered}/{questions.length}</span>
+                <h1 className={`flex-1 text-center font-bold text-lg ${isDarkMode ? 'text-instacart-dark-text' : 'text-instacart-dark'}`}>Mock Test</h1>
+                <span className={`text-xs font-bold mr-2 ${isDarkMode ? 'text-instacart-dark-text-secondary' : 'text-instacart-grey'}`}>{answered}/{questions.length}</span>
             </header>
 
             <div className="p-4 space-y-4">
                 {questions.map((q, idx) => (
-                    <div key={q.id} className="bg-white rounded-2xl border border-instacart-border p-4 shadow-sm">
+                    <div key={q.id} className={`rounded-2xl border p-4 shadow-sm ${isDarkMode ? 'bg-instacart-dark-card border-instacart-dark-border' : 'bg-white border-instacart-border'}`}>
                         <div className="flex items-start gap-2 mb-3">
                             <span className="text-xs font-black text-instacart-green bg-instacart-green-light px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5">
                                 Q{idx + 1}
                             </span>
-                            <p className="text-sm font-semibold text-instacart-dark leading-snug">{q.question_text}</p>
+                            <p className={`text-sm font-semibold leading-snug ${isDarkMode ? 'text-instacart-dark-text' : 'text-instacart-dark'}`}>{q.question_text}</p>
                         </div>
                         <div className="space-y-2">
                             {Object.entries(q.options).map(([key, val]) => {
@@ -257,10 +258,12 @@ function TestContent() {
                                         className={`w-full text-left flex items-start gap-3 px-3 py-2.5 rounded-xl border text-sm transition-all ${
                                             picked
                                                 ? 'border-instacart-green bg-instacart-green-light font-semibold text-instacart-dark'
-                                                : 'border-instacart-border hover:border-instacart-green text-instacart-dark'
+                                                : isDarkMode
+                                                    ? 'border-instacart-dark-border hover:border-instacart-green text-instacart-dark-text'
+                                                    : 'border-instacart-border hover:border-instacart-green text-instacart-dark'
                                         }`}
                                     >
-                                        <span className={`font-bold flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${picked ? 'bg-instacart-green text-white' : 'bg-instacart-grey-light text-instacart-grey'}`}>
+                                        <span className={`font-bold flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${picked ? 'bg-instacart-green text-white' : isDarkMode ? 'bg-instacart-dark-border text-instacart-dark-text-secondary' : 'bg-instacart-grey-light text-instacart-grey'}`}>
                                             {key}
                                         </span>
                                         <span className="leading-snug">{val}</span>
@@ -273,7 +276,7 @@ function TestContent() {
             </div>
 
             {/* Sticky submit bar */}
-            <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-instacart-border shadow-lg">
+            <div className={`fixed bottom-0 left-0 right-0 p-4 border-t shadow-lg ${isDarkMode ? 'bg-instacart-dark-card border-instacart-dark-border' : 'bg-white border-instacart-border'}`}>
                 {error && <p className="text-xs text-red-500 mb-2 text-center">{error}</p>}
                 <button
                     onClick={handleSubmit}

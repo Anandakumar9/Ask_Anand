@@ -224,20 +224,20 @@ export default function Home() {
       {activeTab === 'home' && (
         <>
           <header className="bg-white p-4 sticky top-0 z-10 border-b border-instacart-border shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div>
+            <div className="flex items-center gap-3 mb-4">
+              <button
+                onClick={() => setActiveTab('profile')}
+                className="h-10 w-10 rounded-full bg-instacart-green-light flex items-center justify-center border border-instacart-green text-instacart-green font-bold hover:bg-instacart-green hover:text-white transition-all flex-shrink-0"
+              >
+                {user?.name.charAt(0)}
+              </button>
+              <div className="flex-1">
                 <h1 className="text-xl font-bold text-instacart-dark">Good Day, {user?.name.split(' ')[0]}! 👋</h1>
                 <div className="flex items-center text-instacart-grey text-sm mt-0.5">
                   <MapPin size={14} className="mr-1" />
                   <span>Andhra Pradesh, India</span>
                 </div>
               </div>
-              <button
-                onClick={() => setActiveTab('profile')}
-                className="h-10 w-10 rounded-full bg-instacart-green-light flex items-center justify-center border border-instacart-green text-instacart-green font-bold hover:bg-instacart-green hover:text-white transition-all"
-              >
-                {user?.name.charAt(0)}
-              </button>
             </div>
 
             <div className="relative">
@@ -253,6 +253,7 @@ export default function Home() {
           </header>
 
           <div className="p-4 space-y-6">
+            {/* Continue studying section - show if there's a topic in progress */}
             {continue_topic ? (
               <section>
                 <div className="bg-instacart-green rounded-2xl p-5 text-white shadow-lg relative overflow-hidden">
@@ -273,10 +274,14 @@ export default function Home() {
             ) : (
               <section>
                 <div className="bg-instacart-green rounded-2xl p-6 text-white shadow-lg">
-                  <h2 className="text-xl font-bold mb-2">Ready to start?</h2>
-                  <p className="text-sm opacity-90 mb-4">Pick a topic and start your first study session.</p>
-                  <button onClick={() => router.push('/setup')} className="bg-white text-instacart-green px-6 py-2 rounded-full font-bold">
-                    Get Started
+                  <h2 className="text-xl font-bold mb-2">Ready to study?</h2>
+                  <p className="text-sm opacity-90 mb-4">Select your exam, subject, topic and start your study session.</p>
+                  <button 
+                    onClick={() => router.push('/setup')} 
+                    className="bg-white text-instacart-green px-6 py-2 rounded-full font-bold flex items-center shadow-md hover:bg-instacart-grey-light transition-colors"
+                  >
+                    <Play size={16} className="mr-2 fill-current" />
+                    Start Now
                   </button>
                 </div>
               </section>
@@ -324,33 +329,32 @@ export default function Home() {
               </div>
             </section>
 
-            {!continue_topic && (
-              <section>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-bold text-instacart-dark">Top Topics for You</h3>
-                </div>
-                <div className="space-y-3">
-                  {[
-                    { id: 1, name: 'Physical Geography of India', sub: 'Geography' },
-                    { id: 6, name: 'Ancient India', sub: 'History' }
-                  ].map(topic => (
-                    <div
-                      key={topic.id}
-                      onClick={() => router.push(`/study?topicId=${topic.id}`)}
-                      className="card flex items-center justify-between p-4 cursor-pointer hover:border-instacart-green"
-                    >
-                      <div>
-                        <h4 className="font-bold text-instacart-dark">{topic.name}</h4>
-                        <p className="text-xs text-instacart-grey">{topic.sub}</p>
-                      </div>
-                      <div className="bg-instacart-green-light p-2 rounded-full text-instacart-green">
-                        <Play size={16} fill="currentColor" />
-                      </div>
+            {/* Quick Start Topics - redirect to setup for proper selection */}
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-bold text-instacart-dark">Top Topics for You</h3>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { name: 'Physical Geography of India', sub: 'Geography' },
+                  { name: 'Ancient India', sub: 'History' }
+                ].map((topic, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => router.push('/setup')}
+                    className="card flex items-center justify-between p-4 cursor-pointer hover:border-instacart-green"
+                  >
+                    <div>
+                      <h4 className="font-bold text-instacart-dark">{topic.name}</h4>
+                      <p className="text-xs text-instacart-grey">{topic.sub}</p>
                     </div>
-                  ))}
-                </div>
-              </section>
-            )}
+                    <div className="bg-instacart-green-light p-2 rounded-full text-instacart-green">
+                      <Play size={16} fill="currentColor" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
 
             {/* Recent Activity */}
             <section>

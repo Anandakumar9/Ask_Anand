@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:turbo": "next dev --turbo",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3001",
+    "clean": "rmdir /s /q .next",
     "lint": "next lint"
   },
   "dependencies": {
@@ -15,7 +17,7 @@
     "clsx": "^2.1.1",
     "framer-motion": "^12.29.0",
     "lucide-react": "^0.563.0",
-    "next": "14.0.0",
+    "next": "^14.2.35",
     "react": "^18",
     "react-dom": "^18",
     "tailwind-merge": "^3.4.0",
@@ -27,8 +29,8 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10",
-    "eslint": "^8",
-    "eslint-config-next": "14.0.0",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.35",
     "postcss": "^8",
     "tailwindcss": "^3",
     "typescript": "^5"

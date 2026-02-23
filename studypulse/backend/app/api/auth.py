@@ -1,5 +1,5 @@
 """Authentication API endpoints."""
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -48,7 +48,7 @@ async def get_current_user(
 
 @router.post("/guest", response_model=TokenResponse)
 @limiter.limit(guest_limit)
-async def guest_login(db: AsyncSession = Depends(get_db)):
+async def guest_login(request: Request, db: AsyncSession = Depends(get_db)):
     """
     Auto-login as guest user. Creates a guest user if it doesn't exist.
     
@@ -84,7 +84,7 @@ async def guest_login(db: AsyncSession = Depends(get_db)):
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit(auth_limit)
-async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
+async def register(request: Request, user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     """
     Register a new user.
     
@@ -137,6 +137,7 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit(auth_limit)
 async def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
@@ -211,6 +212,7 @@ async def logout(current_user: User = Depends(get_current_user)):
 @router.post("/google", response_model=TokenResponse)
 @limiter.limit(auth_limit)
 async def google_auth(
+    request: Request,
     payload: dict = Body(...),
     db: AsyncSession = Depends(get_db),
 ):
@@ -310,6 +312,7 @@ async def _ensure_supabase_user(email: str, supabase_url: str, service_key: str)
 @router.post("/forgot-password")
 @limiter.limit(auth_limit)
 async def forgot_password(
+    request: Request,
     payload: dict = Body(...),
     db: AsyncSession = Depends(get_db),
 ):
@@ -351,6 +354,7 @@ async def forgot_password(
 @router.post("/reset-password")
 @limiter.limit(auth_limit)
 async def reset_password(
+    request: Request,
     payload: dict = Body(...),
     db: AsyncSession = Depends(get_db),
 ):

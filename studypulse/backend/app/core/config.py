@@ -73,7 +73,7 @@ class Settings(BaseSettings):
 
     # ── CORS Configuration ────────────────────────────────────
     # Comma-separated list of allowed origins (e.g., "http://localhost:3000,https://app.example.com")
-    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080")
+    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:8080")
 
     # ── Security Configuration ────────────────────────────────
     # Rate Limiting (requests per minute)

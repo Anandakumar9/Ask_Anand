@@ -68,6 +68,7 @@ class ExamBrief(BaseModel):
     category: Optional[str] = None
     icon_url: Optional[str] = None
     subject_count: int = 0
+    total_questions: int = 0
     
     class Config:
         from_attributes = True

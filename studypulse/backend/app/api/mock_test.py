@@ -205,6 +205,8 @@ async def submit_mock_test(
                 "is_correct": is_correct,
                 "explanation": q.explanation or "",
                 "source": q.source or "PREVIOUS",
+                "question_images": q.question_images or [],
+                "explanation_images": q.explanation_images or [],
             }
         )
 
@@ -323,6 +325,8 @@ async def get_test_results(
                 "is_correct": r.is_correct if r else False,
                 "explanation": q.explanation or "",
                 "source": q.source or "PREVIOUS",
+                "question_images": q.question_images or [],
+                "explanation_images": q.explanation_images or [],
             }
         )
 
