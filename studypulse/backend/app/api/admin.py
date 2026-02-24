@@ -154,11 +154,12 @@ async def create_topic_structure(session: AsyncSession, subject_id: int) -> Dict
     return topic_map
 
 
-async def import_question(session: AsyncSession, topic: Topic, q_data: Dict) -> bool:
+async def import_question(session: AsyncSession, topic: Topic, q_data: Dict, index: int = 0) -> bool:
     """Import a single question using nested transaction (SAVEPOINT)."""
     # Extract question text
     question_text = q_data.get('question_text', '') or q_data.get('question', '')
     if not question_text:
+        logger.debug(f"[Q{index}] Empty question text")
         return False
     
     # Extract options
@@ -179,9 +180,9 @@ async def import_question(session: AsyncSession, topic: Topic, q_data: Dict) -> 
         correct_answer = chr(ord('A') + correct_answer)
     correct_answer = str(correct_answer).upper().strip()[:1]  # Take first char only
     
-    # Use nested transaction (SAVEPOINT) for proper error handling
-    async with session.begin_nested():  # Creates a SAVEPOINT
-        try:
+    try:
+        # Use nested transaction (SAVEPOINT) for proper error handling
+        async with session.begin_nested():  # Creates a SAVEPOINT
             # Check for duplicates
             existing = await session.execute(
                 select(Question).where(
@@ -190,6 +191,8 @@ async def import_question(session: AsyncSession, topic: Topic, q_data: Dict) -> 
                 ).limit(1)
             )
             if existing.scalar():
+                if index < 5:
+                    logger.debug(f"[Q{index}] Duplicate found: {question_text[:50]}...")
                 return False  # Will rollback the SAVEPOINT
             
             # Create question
@@ -212,10 +215,11 @@ async def import_question(session: AsyncSession, topic: Topic, q_data: Dict) -> 
             await session.flush()
             return True  # SAVEPOINT will be committed
             
-        except Exception as e:
-            logger.debug(f"[SKIP] Question import failed: {e}")
-            # SAVEPOINT will be automatically rolled back
-            raise  # Re-raise to trigger SAVEPOINT rollback
+    except Exception as e:
+        if index < 5:
+            logger.warning(f"[Q{index}] Import failed: {type(e).__name__}: {str(e)[:100]}")
+        # SAVEPOINT was rolled back
+        return False
     
     return False
 
@@ -456,7 +460,7 @@ async def import_questions_json(
     for idx, q in enumerate(request.questions[:5]):  # Log first 5 for debugging
         logger.info(f"[IMPORT] Sample Q{idx}: topic_id={q.get('topic_id')}, text={q.get('question_text', '')[:50]}...")
     
-    for q in request.questions:
+    for idx, q in enumerate(request.questions):
         # Determine topic
         topic_id = q.get('topic_id')
         # Try to find topic by int or string key
@@ -466,14 +470,10 @@ async def import_questions_json(
         if not topic:
             topic = default_topic
         
-        try:
-            result = await import_question(db, topic, q)
-            if result:
-                imported += 1
-            else:
-                skipped += 1
-        except Exception:
-            # SAVEPOINT was rolled back, question was skipped
+        result = await import_question(db, topic, q, index=idx)
+        if result:
+            imported += 1
+        else:
             skipped += 1
         
         # Commit progress every 100 questions
