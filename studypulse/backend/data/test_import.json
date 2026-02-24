@@ -1,0 +1,12 @@
+{
+  "questions": [
+    {
+      "topic_id": 941,
+      "question_text": "Test question for Cervical Carcinoma",
+      "options": {"A": "Option A", "B": "Option B", "C": "Option C", "D": "Option D"},
+      "correct_answer": "A",
+      "explanation": "Test explanation",
+      "difficulty": "medium"
+    }
+  ]
+}

@@ -197,6 +197,13 @@ app.include_router(
     tags=["⚙️ Admin"]
 )
 
+# Migration router for database migrations
+from app.api.migration import router as migration_router
+app.include_router(
+    migration_router,
+    tags=["🔄 Migration"]
+)
+
 
 @app.get("/", tags=["🏠 Root"])
 async def root():

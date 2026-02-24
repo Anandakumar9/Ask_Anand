@@ -545,6 +545,109 @@ async def import_from_file(
     )
 
 
+@router.post("/migrate")
+async def run_migration(db: AsyncSession = Depends(get_db)):
+    """
+    Run database migration to add missing columns.
+    
+    This adds image support columns to the questions table.
+    """
+    
+    migrations_applied = []
+    
+    # Check and add question_images column
+    try:
+        await db.execute(text("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'questions' AND column_name = 'question_images'
+        """))
+        result = await db.execute(text("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'questions' AND column_name = 'question_images'
+        """))
+        if not result.scalar():
+            await db.execute(text("""
+                ALTER TABLE questions 
+                ADD COLUMN question_images JSONB DEFAULT '[]'::jsonb
+            """))
+            migrations_applied.append("added question_images column")
+            logger.info("[MIGRATION] Added question_images column")
+    except Exception as e:
+        logger.warning(f"[MIGRATION] question_images check failed: {e}")
+    
+    # Check and add explanation_images column
+    try:
+        result = await db.execute(text("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'questions' AND column_name = 'explanation_images'
+        """))
+        if not result.scalar():
+            await db.execute(text("""
+                ALTER TABLE questions 
+                ADD COLUMN explanation_images JSONB DEFAULT '[]'::jsonb
+            """))
+            migrations_applied.append("added explanation_images column")
+            logger.info("[MIGRATION] Added explanation_images column")
+    except Exception as e:
+        logger.warning(f"[MIGRATION] explanation_images check failed: {e}")
+    
+    # Check and add audio_url column
+    try:
+        result = await db.execute(text("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'questions' AND column_name = 'audio_url'
+        """))
+        if not result.scalar():
+            await db.execute(text("""
+                ALTER TABLE questions 
+                ADD COLUMN audio_url VARCHAR(500)
+            """))
+            migrations_applied.append("added audio_url column")
+            logger.info("[MIGRATION] Added audio_url column")
+    except Exception as e:
+        logger.warning(f"[MIGRATION] audio_url check failed: {e}")
+    
+    # Check and add video_url column
+    try:
+        result = await db.execute(text("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'questions' AND column_name = 'video_url'
+        """))
+        if not result.scalar():
+            await db.execute(text("""
+                ALTER TABLE questions 
+                ADD COLUMN video_url VARCHAR(500)
+            """))
+            migrations_applied.append("added video_url column")
+            logger.info("[MIGRATION] Added video_url column")
+    except Exception as e:
+        logger.warning(f"[MIGRATION] video_url check failed: {e}")
+    
+    # Check and add metadata_json column
+    try:
+        result = await db.execute(text("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'questions' AND column_name = 'metadata_json'
+        """))
+        if not result.scalar():
+            await db.execute(text("""
+                ALTER TABLE questions 
+                ADD COLUMN metadata_json JSONB DEFAULT '{}'::jsonb
+            """))
+            migrations_applied.append("added metadata_json column")
+            logger.info("[MIGRATION] Added metadata_json column")
+    except Exception as e:
+        logger.warning(f"[MIGRATION] metadata_json check failed: {e}")
+    
+    await db.commit()
+    
+    return {
+        "status": "completed",
+        "migrations_applied": migrations_applied,
+        "message": f"Applied {len(migrations_applied)} migrations"
+    }
+
+
 @router.delete("/clear")
 async def clear_questions(
     exam_name: str = "NEET PG",
