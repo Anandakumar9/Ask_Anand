@@ -155,18 +155,34 @@ async def create_topic_structure(session: AsyncSession, subject_id: int) -> Dict
 
 
 async def import_question(session: AsyncSession, topic: Topic, q_data: Dict) -> bool:
-    """Import a single question."""
-    try:
-        # Extract question text
-        question_text = q_data.get('question_text', '')
-        if not question_text:
-            question_text = q_data.get('question', '')
-        if not question_text:
-            logger.warning(f"[SKIP] Empty question text")
-            return False
-        
-        # Check for duplicates (first 500 chars) - use limit to avoid multiple results
+    """Import a single question using nested transaction (SAVEPOINT)."""
+    # Extract question text
+    question_text = q_data.get('question_text', '') or q_data.get('question', '')
+    if not question_text:
+        return False
+    
+    # Extract options
+    options = q_data.get('options', {})
+    if isinstance(options, list):
+        options_dict = {}
+        for idx, opt in enumerate(options):
+            label = chr(ord('A') + idx)
+            if isinstance(opt, dict):
+                options_dict[label] = opt.get('text', str(opt))
+            else:
+                options_dict[label] = str(opt)
+        options = options_dict
+    
+    # Extract correct answer
+    correct_answer = q_data.get('correct_answer', '') or q_data.get('correct', '')
+    if isinstance(correct_answer, int):
+        correct_answer = chr(ord('A') + correct_answer)
+    correct_answer = str(correct_answer).upper().strip()[:1]  # Take first char only
+    
+    # Use nested transaction (SAVEPOINT) for proper error handling
+    async with session.begin_nested():  # Creates a SAVEPOINT
         try:
+            # Check for duplicates
             existing = await session.execute(
                 select(Question).where(
                     Question.topic_id == topic.id,
@@ -174,77 +190,34 @@ async def import_question(session: AsyncSession, topic: Topic, q_data: Dict) -> 
                 ).limit(1)
             )
             if existing.scalar():
-                logger.debug(f"[SKIP] Duplicate question: {question_text[:50]}...")
-                return False
-        except Exception as e:
-            # Rollback on query error and continue - this is critical for PostgreSQL
-            logger.warning(f"[WARN] Query error on duplicate check: {e}")
-            try:
-                await session.rollback()
-            except:
-                pass
-            # Continue without duplicate check - we'll catch constraint errors later
-        
-        # Extract options
-        options = q_data.get('options', {})
-        if isinstance(options, list):
-            options_dict = {}
-            for idx, opt in enumerate(options):
-                label = chr(ord('A') + idx)
-                if isinstance(opt, dict):
-                    options_dict[label] = opt.get('text', str(opt))
-                else:
-                    options_dict[label] = str(opt)
-            options = options_dict
-        
-        # Extract correct answer
-        correct_answer = q_data.get('correct_answer', '')
-        if not correct_answer:
-            correct_answer = q_data.get('correct', '')
-            if isinstance(correct_answer, int):
-                correct_answer = chr(ord('A') + correct_answer)
-        correct_answer = str(correct_answer).upper().strip()
-        if len(correct_answer) > 1:
-            correct_answer = correct_answer[0]
-        
-        # Create question
-        question = Question(
-            topic_id=topic.id,
-            question_text=question_text,
-            options=options,
-            correct_answer=correct_answer,
-            explanation=q_data.get('explanation', ''),
-            difficulty=q_data.get('difficulty', 'medium'),
-            source=q_data.get('source', 'IMPORT'),
-            year=q_data.get('year'),
-            question_images=q_data.get('question_images', []),
-            explanation_images=q_data.get('explanation_images', []),
-            is_active=True,
-            is_validated=True,
-        )
-        
-        session.add(question)
-        # Flush to catch any constraint errors immediately
-        try:
+                return False  # Will rollback the SAVEPOINT
+            
+            # Create question
+            question = Question(
+                topic_id=topic.id,
+                question_text=question_text,
+                options=options,
+                correct_answer=correct_answer,
+                explanation=q_data.get('explanation', ''),
+                difficulty=q_data.get('difficulty', 'medium'),
+                source=q_data.get('source', 'IMPORT'),
+                year=q_data.get('year'),
+                question_images=q_data.get('question_images', []),
+                explanation_images=q_data.get('explanation_images', []),
+                is_active=True,
+                is_validated=True,
+            )
+            
+            session.add(question)
             await session.flush()
-        except Exception as flush_err:
-            logger.warning(f"[WARN] Flush error (likely duplicate): {flush_err}")
-            try:
-                await session.rollback()
-            except:
-                pass
-            return False
-        
-        return True
-        
-    except Exception as e:
-        logger.error(f"[ERROR] Failed to import question: {e}")
-        # Rollback to clear any failed transaction state
-        try:
-            await session.rollback()
-        except:
-            pass
-        return False
+            return True  # SAVEPOINT will be committed
+            
+        except Exception as e:
+            logger.debug(f"[SKIP] Question import failed: {e}")
+            # SAVEPOINT will be automatically rolled back
+            raise  # Re-raise to trigger SAVEPOINT rollback
+    
+    return False
 
 
 async def import_from_json_file(
@@ -493,26 +466,29 @@ async def import_questions_json(
         if not topic:
             topic = default_topic
         
-        result = await import_question(db, topic, q)
-        if result:
-            imported += 1
-            # Commit each successful question to avoid transaction abort issues
-            try:
-                await db.commit()
-            except Exception as commit_err:
-                logger.warning(f"[WARN] Commit error: {commit_err}")
-                try:
-                    await db.rollback()
-                except:
-                    pass
-                imported -= 1  # Revert count
+        try:
+            result = await import_question(db, topic, q)
+            if result:
+                imported += 1
+            else:
                 skipped += 1
-        else:
+        except Exception:
+            # SAVEPOINT was rolled back, question was skipped
             skipped += 1
         
-        # Log progress
+        # Commit progress every 100 questions
         if imported % 100 == 0 and imported > 0:
-            logger.info(f"[PROGRESS] Imported {imported} questions...")
+            try:
+                await db.commit()
+                logger.info(f"[PROGRESS] Imported {imported} questions...")
+            except Exception:
+                pass
+    
+    # Final commit
+    try:
+        await db.commit()
+    except Exception:
+        pass
     
     logger.info(f"[IMPORT] Complete: imported={imported}, skipped={skipped}, errors={errors}")
     
