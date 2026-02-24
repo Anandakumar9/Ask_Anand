@@ -120,7 +120,7 @@ function StudyTimerContent() {
                     <div>
                         <h2 className={`text-2xl font-black mb-2 ${isDarkMode ? 'text-white' : 'text-instacart-dark'}`}>Session Complete!</h2>
                         <p className={`font-medium ${isDarkMode ? 'text-gray-400' : 'text-instacart-grey'}`}>
-                            Your questions are ready. Start the test whenever you're set.
+                            Your questions are ready. Start the test whenever you&apos;re set.
                         </p>
                     </div>
                     <div className={`rounded-2xl p-4 border ${isDarkMode ? 'bg-green-900/30 border-green-800' : 'bg-instacart-green-light border-instacart-green border-opacity-30'}`}>
@@ -227,7 +227,7 @@ function StudyTimerContent() {
                         </div>
                         <div className="flex items-center space-x-2 text-instacart-green text-sm font-semibold">
                             <BookOpen size={16} />
-                            <span>When the timer ends you'll see a Start Test button.</span>
+                            <span>When the timer ends you&apos;ll see a Start Test button.</span>
                         </div>
                     </div>
                 </section>
