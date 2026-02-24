@@ -189,6 +189,14 @@ app.include_router(
     tags=["🔧 Cache Management"]
 )
 
+# Admin router for production operations
+from app.api.admin import router as admin_router
+app.include_router(
+    admin_router,
+    prefix="/api/v1",
+    tags=["⚙️ Admin"]
+)
+
 
 @app.get("/", tags=["🏠 Root"])
 async def root():
