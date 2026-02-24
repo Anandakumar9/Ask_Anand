@@ -60,6 +60,61 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Database initialized successfully")
     
+    # Run auto-migration for image support columns
+    logger.info("Running auto-migration for image support...")
+    try:
+        from sqlalchemy import text
+        from app.core.database import async_session_factory
+        async with async_session_factory() as session:
+            # Check and add question_images column
+            result = await session.execute(text("""
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'questions' AND column_name = 'question_images'
+            """))
+            if not result.scalar():
+                await session.execute(text("""
+                    ALTER TABLE questions ADD COLUMN question_images JSONB DEFAULT '[]'::jsonb
+                """))
+                logger.info("[MIGRATION] Added question_images column")
+            
+            # Check and add explanation_images column
+            result = await session.execute(text("""
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'questions' AND column_name = 'explanation_images'
+            """))
+            if not result.scalar():
+                await session.execute(text("""
+                    ALTER TABLE questions ADD COLUMN explanation_images JSONB DEFAULT '[]'::jsonb
+                """))
+                logger.info("[MIGRATION] Added explanation_images column")
+            
+            # Check and add audio_url column
+            result = await session.execute(text("""
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'questions' AND column_name = 'audio_url'
+            """))
+            if not result.scalar():
+                await session.execute(text("""
+                    ALTER TABLE questions ADD COLUMN audio_url VARCHAR(500)
+                """))
+                logger.info("[MIGRATION] Added audio_url column")
+            
+            # Check and add video_url column
+            result = await session.execute(text("""
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'questions' AND column_name = 'video_url'
+            """))
+            if not result.scalar():
+                await session.execute(text("""
+                    ALTER TABLE questions ADD COLUMN video_url VARCHAR(500)
+                """))
+                logger.info("[MIGRATION] Added video_url column")
+            
+            await session.commit()
+            logger.info("Auto-migration completed successfully")
+    except Exception as e:
+        logger.warning(f"Auto-migration skipped (SQLite or already migrated): {e}")
+    
     # Initialize Redis cache
     logger.info("Initializing Redis cache...")
     await cache.initialize()
