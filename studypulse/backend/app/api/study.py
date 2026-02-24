@@ -280,7 +280,7 @@ async def _generate_and_cache_questions(
     last_error = None
 
     logger.info(
-        f"🔄 Background generation STARTED: session={session_id} "
+        f"[BG] Background generation STARTED: session={session_id} "
         f"topic={topic_id} user={user_id}"
     )
 
@@ -302,7 +302,7 @@ async def _generate_and_cache_questions(
 
                 if not topic:
                     error_msg = f"Topic {topic_id} not found"
-                    logger.error(f"❌ {error_msg}")
+                    logger.error(f"[ERROR] {error_msg}")
                     await cache.set_pregen_status(topic_id, user_id, "failed")
                     return
 
@@ -314,7 +314,7 @@ async def _generate_and_cache_questions(
                         select(Topic).where(Topic.subject_id == topic.subject_id)
                     )
                     all_topics = list(all_topics_result.scalars().all())
-                    logger.info(f"🎲 Random mode: Found {len(all_topics)} topics in subject {topic.subject_id}")
+                    logger.info(f"[RANDOM] Random mode: Found {len(all_topics)} topics in subject {topic.subject_id}")
 
                 # Check Ollama availability (if it's being used)
                 try:
@@ -322,7 +322,7 @@ async def _generate_and_cache_questions(
                     if not await ollama_client.is_available():
                         raise Exception("Ollama service is unavailable")
                 except Exception as ollama_error:
-                    logger.warning(f"⚠️ Ollama health check failed: {ollama_error}")
+                    logger.warning(f"[WARN] Ollama health check failed: {ollama_error}")
                     if retry_count < max_retries:
                         raise  # Retry if Ollama is down
                     # On last attempt, continue anyway (fallback may work)
@@ -346,7 +346,7 @@ async def _generate_and_cache_questions(
                             )
                             all_questions.extend(result.get("questions", []))
                         except Exception as e:
-                            logger.warning(f"⚠️ Failed to get questions for topic {t.id}: {e}")
+                            logger.warning(f"[WARN] Failed to get questions for topic {t.id}: {e}")
                             continue
                     
                     # Shuffle questions for random mix
@@ -384,14 +384,14 @@ async def _generate_and_cache_questions(
                 }
 
                 logger.info(
-                    f"📊 Generated {len(questions)} questions for session={session_id} "
+                    f"[OK] Generated {len(questions)} questions for session={session_id} "
                     f"in {gen_time:.2f}s (attempt {retry_count + 1}/{max_retries + 1})"
                 )
 
                 # Handle edge cases
                 if len(questions) == 0:
                     logger.warning(
-                        f"⚠️ No questions available: session={session_id} "
+                        f"[WARN] No questions available: session={session_id} "
                         f"topic={topic_id} ({topic.name}) - This topic has no questions in database!"
                     )
                     await cache.set_pregen_status(topic_id, user_id, "failed")
@@ -435,7 +435,7 @@ async def _generate_and_cache_questions(
 
                 total_time = time.time() - start_time
                 logger.info(
-                    f"✅ Background generation COMPLETED: session={session_id} "
+                    f"[OK] Background generation COMPLETED: session={session_id} "
                     f"cached {len(questions)} questions | "
                     f"gen_time={gen_time:.2f}s total_time={total_time:.2f}s "
                     f"attempts={retry_count + 1}"
@@ -448,7 +448,7 @@ async def _generate_and_cache_questions(
             attempt_time = time.time() - attempt_start
 
             logger.error(
-                f"❌ Background generation attempt {retry_count}/{max_retries + 1} FAILED: "
+                f"[ERROR] Background generation attempt {retry_count}/{max_retries + 1} FAILED: "
                 f"session={session_id} error={str(e)} attempt_time={attempt_time:.2f}s",
                 exc_info=True
             )
@@ -457,7 +457,7 @@ async def _generate_and_cache_questions(
                 # Exponential backoff: 1s, 2s, 4s
                 backoff_time = 2 ** (retry_count - 1)
                 logger.info(
-                    f"🔄 Retrying in {backoff_time}s... "
+                    f"[RETRY] Retrying in {backoff_time}s... "
                     f"(attempt {retry_count + 1}/{max_retries + 1})"
                 )
                 await asyncio.sleep(backoff_time)
@@ -465,7 +465,7 @@ async def _generate_and_cache_questions(
                 # All retries exhausted
                 total_time = time.time() - start_time
                 logger.error(
-                    f"❌ Background generation FAILED after {retry_count} attempts: "
+                    f"[ERROR] Background generation FAILED after {retry_count} attempts: "
                     f"session={session_id} total_time={total_time:.2f}s error={str(last_error)}"
                 )
 

@@ -364,7 +364,7 @@ class RedisCache:
         # Fallback to memory
         self._memory_set(key, data, ttl)
         logger.info(
-            f"📦 Memory cached {len(questions)} questions "
+            f"[MEM] Memory cached {len(questions)} questions "
             f"topic={topic_id} user={user_id}"
         )
 
@@ -398,7 +398,7 @@ class RedisCache:
         if data:
             questions = json.loads(data)
             logger.info(
-                f"📦 Memory HIT: {len(questions)} questions "
+                f"[MEM] Memory HIT: {len(questions)} questions "
                 f"topic={topic_id} user={user_id}"
             )
             return questions

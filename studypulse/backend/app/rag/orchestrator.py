@@ -103,7 +103,7 @@ class QuestionOrchestrator:
 
                     self.metrics["cache_hits"] += 1
                     logger.info(
-                        f"✅ CACHE HIT: Returning {len(formatted)} pre-generated questions "
+                        f"[HIT] CACHE HIT: Returning {len(formatted)} pre-generated questions "
                         f"for topic={topic_id} user={user_id} in {ms}ms"
                     )
 
@@ -119,7 +119,7 @@ class QuestionOrchestrator:
                     }
                 else:
                     logger.info(
-                        f"⚠️ Cache entry exists but insufficient/invalid: "
+                        f"[WARN] Cache entry exists but insufficient/invalid: "
                         f"{len(questions)} questions (need {question_count}), "
                         f"status={metadata.get('status', 'ok')} - regenerating"
                     )
@@ -132,7 +132,7 @@ class QuestionOrchestrator:
 
                     self.metrics["cache_hits"] += 1
                     logger.info(
-                        f"✅ CACHE HIT (legacy): Returning {len(formatted)} questions "
+                        f"[HIT] CACHE HIT (legacy): Returning {len(formatted)} questions "
                         f"for topic={topic_id} user={user_id} in {ms}ms"
                     )
 
@@ -149,7 +149,7 @@ class QuestionOrchestrator:
 
         # Cache miss - proceed with full generation
         self.metrics["cache_misses"] += 1
-        logger.info(f"📭 CACHE MISS: Generating questions for topic={topic_id} user={user_id}")
+        logger.info(f"[MISS] CACHE MISS: Generating questions for topic={topic_id} user={user_id}")
 
         # ── Step 1: Resolve topic hierarchy ───────────────────
         info = await self._resolve_topic(topic_id, db)
@@ -175,9 +175,11 @@ class QuestionOrchestrator:
             history_ids = list(set(history_ids) | set(extra_exclude_ids))
 
         # ── Step 2: Fetch questions from database ─────────────
+        # OPTIMIZATION: First check total available questions in topic
+        # If we have enough DB questions, skip AI generation entirely
         db_target_count = int(question_count * previous_year_ratio) if settings.RAG_ENABLED else question_count
         db_questions = await self._prev_year_questions(
-            topic_id, db_target_count * 2, history_ids, db  # Oversample for SmartSelector
+            topic_id, question_count * 2, history_ids, db  # Fetch up to 2x target for SmartSelector
         )
 
         # Track if we're using fallback questions
@@ -191,7 +193,7 @@ class QuestionOrchestrator:
                 f"Attempting fallback to similar topics..."
             )
             db_questions = await self._get_similar_topic_questions(
-                topic_id, db_target_count * 2, history_ids, db
+                topic_id, question_count * 2, history_ids, db
             )
             if db_questions:
                 using_fallback = True
@@ -200,9 +202,18 @@ class QuestionOrchestrator:
                     f"Successfully fetched {len(db_questions)} questions from similar topics!"
                 )
 
+        # OPTIMIZATION: Skip AI generation if we have enough DB questions
+        # This makes question retrieval instant for topics with pre-imported questions
+        skip_ai_generation = len(db_questions) >= question_count
+        
+        if skip_ai_generation:
+            logger.info(
+                f"[FAST PATH] Topic has {len(db_questions)} DB questions - skipping AI generation"
+            )
+
         # ── Step 3: Generate AI questions if RAG enabled ──────
         ai_questions = []
-        if settings.RAG_ENABLED:
+        if settings.RAG_ENABLED and not skip_ai_generation:
             # Check if Ollama is available before attempting AI generation
             from app.core.ollama import ollama_client
             ollama_available = await ollama_client.is_available()

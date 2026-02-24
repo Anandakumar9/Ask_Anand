@@ -157,7 +157,7 @@ class SmartQuestionSelector:
                 "average_score": avg_score,
                 "tests_taken": len(tests),
                 "difficulty_scores": difficulty_scores,
-                "last_test_date": tests[0].submitted_at if tests else None,
+                "last_test_date": tests[0].completed_at if tests else None,
                 "trend": trend
             }
 

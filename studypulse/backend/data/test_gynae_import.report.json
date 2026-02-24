@@ -1,0 +1,33 @@
+{
+  "topics": {
+    "Adnexal Mass and Gyne Cancers": 26,
+    "Anovulation  Hormonal Disorders and Amenorrheas": 14,
+    "Antepartum Hemorrhage and Complications": 13,
+    "Clinical Conditions of Reproductive Age Group": 25,
+    "Early Pregnancy Complications": 24,
+    "High Risk Obstetrics": 9,
+    "Labor and Delivery": 12,
+    "Mixed Bag Topics": 6,
+    "OBG Basics": 18,
+    "Prolapse and Contraception": 15,
+    "Relevant Clinical Anatomy": 5,
+    "Relevant Clinical Embryology and Associated Disorders": 8,
+    "Reproductive Physiology and Clinical Conditions": 10
+  },
+  "total_questions": 185,
+  "topic_map_template": {
+    "Adnexal Mass and Gyne Cancers": null,
+    "Anovulation  Hormonal Disorders and Amenorrheas": null,
+    "Antepartum Hemorrhage and Complications": null,
+    "Clinical Conditions of Reproductive Age Group": null,
+    "Early Pregnancy Complications": null,
+    "High Risk Obstetrics": null,
+    "Labor and Delivery": null,
+    "Mixed Bag Topics": null,
+    "OBG Basics": null,
+    "Prolapse and Contraception": null,
+    "Relevant Clinical Anatomy": null,
+    "Relevant Clinical Embryology and Associated Disorders": null,
+    "Reproductive Physiology and Clinical Conditions": null
+  }
+}

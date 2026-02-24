@@ -1,0 +1,184 @@
+# 🔐 Railway Environment Variables
+
+**Copy these to Railway Dashboard:**
+
+Go to: https://railway.app/dashboard
+→ Click "askanand-simba" project
+→ Click your backend service
+→ Click "Variables" tab
+→ Click "+ New Variable" for each one below
+
+---
+
+## REQUIRED VARIABLES (Copy exactly):
+
+```
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+```
+**Important:** Type exactly as shown. Railway will auto-replace with PostgreSQL URL.
+
+```
+ENVIRONMENT=production
+```
+
+```
+SECRET_KEY=REPLACE_WITH_GENERATED_KEY_BELOW
+```
+**Replace with the key generated below**
+
+```
+CORS_ORIGINS=https://askanand-simba.up.railway.app
+```
+
+```
+DEBUG=False
+```
+
+---
+
+## OPTIONAL BUT RECOMMENDED:
+
+```
+DB_POOL_SIZE=5
+```
+
+```
+DB_MAX_OVERFLOW=10
+```
+
+```
+RAG_ENABLED=false
+```
+
+```
+PREVIOUS_YEAR_RATIO=1.0
+```
+
+---
+
+## YOUR SECURE SECRET_KEY:
+
+```
+SECRET_KEY=k3rfWSSxtQ_gaHkQ_p3MbP7m25LLT3fZ_D3QXxXCGiK9V2W3M366551VCcy5hMr21q-Y_dPRB3ZvoDpgoGbzsw
+```
+
+**Copy this entire SECRET_KEY value** (including the random string) and paste it when adding the SECRET_KEY variable in Railway.
+
+---
+
+## 📋 STEP-BY-STEP INSTRUCTIONS:
+
+### 1. Open Railway Dashboard
+Go to: https://railway.app/dashboard
+
+### 2. Navigate to Your Service
+- Click **"askanand-simba"** project
+- Click your **backend service** (the one running FastAPI)
+- Click **"Variables"** tab at the top
+
+### 3. Add Each Variable
+Click **"+ New Variable"** button and add these ONE BY ONE:
+
+**Variable 1:**
+- Key: `DATABASE_URL`
+- Value: `${{Postgres.DATABASE_URL}}`
+
+**Variable 2:**
+- Key: `ENVIRONMENT`
+- Value: `production`
+
+**Variable 3:**
+- Key: `SECRET_KEY`
+- Value: `k3rfWSSxtQ_gaHkQ_p3MbP7m25LLT3fZ_D3QXxXCGiK9V2W3M366551VCcy5hMr21q-Y_dPRB3ZvoDpgoGbzsw`
+
+**Variable 4:**
+- Key: `CORS_ORIGINS`
+- Value: `https://askanand-simba.up.railway.app`
+
+**Variable 5:**
+- Key: `DEBUG`
+- Value: `False`
+
+**Variable 6 (Optional):**
+- Key: `DB_POOL_SIZE`
+- Value: `5`
+
+**Variable 7 (Optional):**
+- Key: `DB_MAX_OVERFLOW`
+- Value: `10`
+
+**Variable 8 (Optional):**
+- Key: `RAG_ENABLED`
+- Value: `false`
+
+**Variable 9 (Optional):**
+- Key: `PREVIOUS_YEAR_RATIO`
+- Value: `1.0`
+
+### 4. Save and Wait
+- Railway will automatically redeploy (takes 2-3 minutes)
+- Watch the deployment logs in Railway dashboard
+
+### 5. Verify It Worked
+After deployment completes, run these commands in PowerShell:
+
+```powershell
+# Test 1: Health check (should still work)
+curl.exe https://askanand-simba.up.railway.app/health
+
+# Test 2: Guest auth (should now return a token)
+curl.exe -X POST https://askanand-simba.up.railway.app/api/v1/auth/guest
+
+# Test 3: Exams (should now return 8 exams instead of empty array)
+curl.exe https://askanand-simba.up.railway.app/api/v1/exams/
+```
+
+---
+
+## ✅ WHAT WILL HAPPEN:
+
+After you add these variables and Railway redeploys:
+
+1. **Backend will restart** with proper configuration
+2. **Auto-seeding will run** (first deployment with empty database)
+3. **Database will be populated** with:
+   - 8 exams (UPSC, NEET PG, IBPS PO, SSC CGL, JEE Main, CAT, CBSE 12, GATE)
+   - 200+ topics
+   - 10,000+ questions
+   - 19 demo users
+   - Study sessions and mock tests
+4. **Guest authentication will work**
+5. **Your backend will be fully functional**
+
+---
+
+## 🚨 IMPORTANT NOTES:
+
+1. **DATABASE_URL must be exactly:** `${{Postgres.DATABASE_URL}}`
+   - Don't change this - Railway replaces it automatically
+   - Make sure you have a PostgreSQL service in your Railway project
+
+2. **SECRET_KEY is unique to you:**
+   - Don't share this key publicly
+   - If compromised, generate a new one with: `python -c "import secrets; print(secrets.token_urlsafe(64))"`
+
+3. **Case matters:**
+   - `False` not `false` for DEBUG
+   - `production` not `Production` for ENVIRONMENT
+
+4. **CORS_ORIGINS will be updated later:**
+   - After Vercel deployment, you'll add your Vercel URL to this
+
+---
+
+## 🎯 NEXT STEPS AFTER RAILWAY CONFIGURATION:
+
+Once Railway redeploys successfully:
+1. ✅ Test all endpoints work
+2. ✅ Deploy to Vercel
+3. ✅ Update CORS_ORIGINS with Vercel URL
+4. ✅ Test the live app
+
+---
+
+**Start by opening Railway Dashboard and adding these variables now!** 🚀

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { ChevronLeft, Pause, Square, Target, Play as PlayIcon, Loader2, BookOpen } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { studyApi } from '@/services/api';
+import { useThemeStore } from '@/store/themeStore';
 
 function StudyTimerContent() {
     const router = useRouter();
@@ -11,6 +12,7 @@ function StudyTimerContent() {
     const topicId = searchParams.get('topicId');
     const durationParam = searchParams.get('duration');
     const totalMins = durationParam ? Math.max(5, Math.min(120, parseInt(durationParam))) : 45;
+    const { isDarkMode } = useThemeStore();
 
     const [timeLeft, setTimeLeft] = useState(totalMins * 60);
     const [isActive, setIsActive] = useState(false);
@@ -92,9 +94,9 @@ function StudyTimerContent() {
     // ── Loading / starting session ──
     if (loading) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-4">
+            <div className={`min-h-screen flex flex-col items-center justify-center gap-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
                 <Loader2 className="animate-spin text-instacart-green" size={48} />
-                <p className="text-instacart-grey text-sm font-medium">Starting session & generating questions…</p>
+                <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-instacart-grey'}`}>Starting session & generating questions…</p>
             </div>
         );
     }
@@ -102,9 +104,9 @@ function StudyTimerContent() {
     // ── Completing session (saving to backend) ──
     if (ending) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-4">
+            <div className={`min-h-screen flex flex-col items-center justify-center gap-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
                 <Loader2 className="animate-spin text-instacart-green" size={48} />
-                <p className="text-instacart-dark font-bold text-base">Wrapping up session…</p>
+                <p className={`font-bold text-base ${isDarkMode ? 'text-white' : 'text-instacart-dark'}`}>Wrapping up session…</p>
             </div>
         );
     }
@@ -112,17 +114,17 @@ function StudyTimerContent() {
     // ── Session complete — show Start Test button ──
     if (sessionReady) {
         return (
-            <main className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
+            <main className={`min-h-screen flex flex-col items-center justify-center p-6 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
                 <div className="w-full max-w-sm space-y-6 text-center">
                     <div className="text-6xl">🎉</div>
                     <div>
-                        <h2 className="text-2xl font-black text-instacart-dark mb-2">Session Complete!</h2>
-                        <p className="text-instacart-grey font-medium">
-                            Your questions are ready. Start the test whenever you&apos;re set.
+                        <h2 className={`text-2xl font-black mb-2 ${isDarkMode ? 'text-white' : 'text-instacart-dark'}`}>Session Complete!</h2>
+                        <p className={`font-medium ${isDarkMode ? 'text-gray-400' : 'text-instacart-grey'}`}>
+                            Your questions are ready. Start the test whenever you're set.
                         </p>
                     </div>
-                    <div className="bg-instacart-green-light rounded-2xl p-4 border border-instacart-green border-opacity-30">
-                        <p className="text-instacart-green font-bold text-sm">
+                    <div className={`rounded-2xl p-4 border ${isDarkMode ? 'bg-green-900/30 border-green-800' : 'bg-instacart-green-light border-instacart-green border-opacity-30'}`}>
+                        <p className={`font-bold text-sm ${isDarkMode ? 'text-green-400' : 'text-instacart-green'}`}>
                             10 questions generated based on your study session
                         </p>
                     </div>
@@ -134,7 +136,7 @@ function StudyTimerContent() {
                     </button>
                     <button
                         onClick={() => router.push('/')}
-                        className="text-instacart-grey text-sm font-semibold hover:underline"
+                        className={`text-sm font-semibold hover:underline ${isDarkMode ? 'text-gray-400' : 'text-instacart-grey'}`}
                     >
                         Skip for now
                     </button>
@@ -147,23 +149,23 @@ function StudyTimerContent() {
     const durationLabel = totalMins < 60 ? `${totalMins} min` : totalMins === 60 ? '1 hr' : `${totalMins / 60} hr`;
 
     return (
-        <main className="min-h-screen bg-instacart-grey-light pb-8">
-            <header className="p-4 flex items-center bg-white sticky top-0 z-10 border-b border-instacart-border">
-                <button onClick={() => router.back()} className="p-2 hover:bg-instacart-grey-light rounded-full transition-colors">
-                    <ChevronLeft className="text-instacart-dark" />
+        <main className={`min-h-screen pb-8 ${isDarkMode ? 'bg-gray-900' : 'bg-instacart-grey-light'}`}>
+            <header className={`p-4 flex items-center sticky top-0 z-10 border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-instacart-border'}`}>
+                <button onClick={() => router.back()} className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-instacart-grey-light'}`}>
+                    <ChevronLeft className={isDarkMode ? 'text-white' : 'text-instacart-dark'} />
                 </button>
-                <h1 className="flex-1 text-center font-bold text-lg text-instacart-dark">Study Session</h1>
+                <h1 className={`flex-1 text-center font-bold text-lg ${isDarkMode ? 'text-white' : 'text-instacart-dark'}`}>Study Session</h1>
                 <div className="w-10" />
             </header>
 
             <div className="p-4 space-y-8 mt-4">
                 <div className="flex justify-center">
-                    <div className="inline-flex items-center space-x-2 bg-white px-4 py-2 rounded-full shadow-sm border border-instacart-border">
+                    <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-full shadow-sm border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-instacart-border'}`}>
                         <span className="text-xs font-bold text-instacart-green bg-instacart-green-light px-2 py-0.5 rounded uppercase">
                             {isActive ? 'STUDYING' : 'PAUSED'}
                         </span>
-                        <span className="text-xs text-instacart-grey">/</span>
-                        <span className="text-xs font-semibold text-instacart-dark">{durationLabel} session</span>
+                        <span className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-instacart-grey'}`}>/</span>
+                        <span className={`text-xs font-semibold ${isDarkMode ? 'text-white' : 'text-instacart-dark'}`}>{durationLabel} session</span>
                     </div>
                 </div>
 
@@ -171,7 +173,7 @@ function StudyTimerContent() {
                 <div className="flex justify-center py-10">
                     <div className="relative h-64 w-64 flex items-center justify-center">
                         <svg className="absolute h-full w-full -rotate-90">
-                            <circle cx="128" cy="128" r="120" stroke="white" strokeWidth="12" fill="transparent" />
+                            <circle cx="128" cy="128" r="120" stroke={isDarkMode ? '#374151' : 'white'} strokeWidth="12" fill="transparent" />
                             <circle
                                 cx="128" cy="128" r="120"
                                 stroke="#43B02A" strokeWidth="12" fill="transparent"
@@ -182,10 +184,10 @@ function StudyTimerContent() {
                             />
                         </svg>
                         <div className="text-center z-10">
-                            <span className="block text-6xl font-black text-instacart-dark tracking-tighter">
+                            <span className={`block text-6xl font-black tracking-tighter ${isDarkMode ? 'text-white' : 'text-instacart-dark'}`}>
                                 {formatTime(timeLeft)}
                             </span>
-                            <span className="text-instacart-grey font-bold uppercase text-xs tracking-widest mt-2 block">
+                            <span className={`font-bold uppercase text-xs tracking-widest mt-2 block ${isDarkMode ? 'text-gray-400' : 'text-instacart-grey'}`}>
                                 remaining
                             </span>
                         </div>
@@ -196,7 +198,7 @@ function StudyTimerContent() {
                 <div className="flex justify-center items-center space-x-6">
                     <button
                         onClick={() => setIsActive(!isActive)}
-                        className="h-16 w-16 bg-white border border-instacart-border rounded-full flex items-center justify-center shadow-md active:scale-95 transition-all text-instacart-dark"
+                        className={`h-16 w-16 border rounded-full flex items-center justify-center shadow-md active:scale-95 transition-all ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-instacart-border text-instacart-dark'}`}
                     >
                         {isActive
                             ? <Pause size={28} fill="currentColor" />
@@ -205,7 +207,7 @@ function StudyTimerContent() {
 
                     <button
                         onClick={handleEndSession}
-                        className="h-14 w-14 bg-red-50 border border-red-100 rounded-full flex items-center justify-center shadow-sm active:scale-95 transition-all text-red-500"
+                        className={`h-14 w-14 border rounded-full flex items-center justify-center shadow-sm active:scale-95 transition-all ${isDarkMode ? 'bg-red-900/30 border-red-800 text-red-400' : 'bg-red-50 border-red-100 text-red-500'}`}
                     >
                         <Square size={20} fill="currentColor" />
                     </button>
@@ -213,19 +215,19 @@ function StudyTimerContent() {
 
                 {/* Info card */}
                 <section>
-                    <div className="space-y-4 shadow-md border-t-4 border-t-instacart-green bg-white rounded-2xl p-4">
+                    <div className={`space-y-4 shadow-md border-t-4 border-t-instacart-green rounded-2xl p-4 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
                         <div className="flex items-center space-x-3">
                             <div className="bg-instacart-green-light p-2 rounded-lg text-instacart-green">
                                 <Target size={20} />
                             </div>
                             <div>
-                                <h3 className="font-bold text-instacart-dark">Session Goal</h3>
-                                <p className="text-xs text-instacart-grey">Questions are generating in the background.</p>
+                                <h3 className={`font-bold ${isDarkMode ? 'text-white' : 'text-instacart-dark'}`}>Session Goal</h3>
+                                <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-instacart-grey'}`}>Questions are generating in the background.</p>
                             </div>
                         </div>
                         <div className="flex items-center space-x-2 text-instacart-green text-sm font-semibold">
                             <BookOpen size={16} />
-                            <span>When the timer ends you&apos;ll see a Start Test button.</span>
+                            <span>When the timer ends you'll see a Start Test button.</span>
                         </div>
                     </div>
                 </section>
@@ -235,9 +237,11 @@ function StudyTimerContent() {
 }
 
 export default function StudyTimer() {
+    const { isDarkMode } = useThemeStore();
+    
     return (
         <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center bg-white">
+            <div className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
                 <Loader2 className="animate-spin text-instacart-green" size={48} />
             </div>
         }>
