@@ -177,9 +177,13 @@ async def import_question(session: AsyncSession, topic: Topic, q_data: Dict) -> 
                 logger.debug(f"[SKIP] Duplicate question: {question_text[:50]}...")
                 return False
         except Exception as e:
-            # Rollback on query error and continue
-            await session.rollback()
-            logger.warning(f"[WARN] Query error, retrying: {e}")
+            # Rollback on query error and continue - this is critical for PostgreSQL
+            logger.warning(f"[WARN] Query error on duplicate check: {e}")
+            try:
+                await session.rollback()
+            except:
+                pass
+            # Continue without duplicate check - we'll catch constraint errors later
         
         # Extract options
         options = q_data.get('options', {})
@@ -220,6 +224,17 @@ async def import_question(session: AsyncSession, topic: Topic, q_data: Dict) -> 
         )
         
         session.add(question)
+        # Flush to catch any constraint errors immediately
+        try:
+            await session.flush()
+        except Exception as flush_err:
+            logger.warning(f"[WARN] Flush error (likely duplicate): {flush_err}")
+            try:
+                await session.rollback()
+            except:
+                pass
+            return False
+        
         return True
         
     except Exception as e:
@@ -481,15 +496,25 @@ async def import_questions_json(
         result = await import_question(db, topic, q)
         if result:
             imported += 1
+            # Commit each successful question to avoid transaction abort issues
+            try:
+                await db.commit()
+            except Exception as commit_err:
+                logger.warning(f"[WARN] Commit error: {commit_err}")
+                try:
+                    await db.rollback()
+                except:
+                    pass
+                imported -= 1  # Revert count
+                skipped += 1
         else:
             skipped += 1
         
-        # Commit in batches
+        # Log progress
         if imported % 100 == 0 and imported > 0:
-            await db.commit()
             logger.info(f"[PROGRESS] Imported {imported} questions...")
     
-    await db.commit()
+    logger.info(f"[IMPORT] Complete: imported={imported}, skipped={skipped}, errors={errors}")
     
     logger.info(f"[IMPORT] Complete: imported={imported}, skipped={skipped}, errors={errors}")
     
