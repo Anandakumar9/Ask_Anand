@@ -166,15 +166,20 @@ async def import_question(session: AsyncSession, topic: Topic, q_data: Dict) -> 
             return False
         
         # Check for duplicates (first 500 chars) - use limit to avoid multiple results
-        existing = await session.execute(
-            select(Question).where(
-                Question.topic_id == topic.id,
-                Question.question_text == question_text[:500]
-            ).limit(1)
-        )
-        if existing.scalar():
-            logger.debug(f"[SKIP] Duplicate question: {question_text[:50]}...")
-            return False
+        try:
+            existing = await session.execute(
+                select(Question).where(
+                    Question.topic_id == topic.id,
+                    Question.question_text == question_text[:500]
+                ).limit(1)
+            )
+            if existing.scalar():
+                logger.debug(f"[SKIP] Duplicate question: {question_text[:50]}...")
+                return False
+        except Exception as e:
+            # Rollback on query error and continue
+            await session.rollback()
+            logger.warning(f"[WARN] Query error, retrying: {e}")
         
         # Extract options
         options = q_data.get('options', {})
@@ -219,6 +224,11 @@ async def import_question(session: AsyncSession, topic: Topic, q_data: Dict) -> 
         
     except Exception as e:
         logger.error(f"[ERROR] Failed to import question: {e}")
+        # Rollback to clear any failed transaction state
+        try:
+            await session.rollback()
+        except:
+            pass
         return False
 
 
