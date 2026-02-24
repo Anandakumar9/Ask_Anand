@@ -5,11 +5,13 @@ This module provides admin endpoints for:
 - Importing questions from JSON files
 - Database maintenance
 - System status checks
+- Duplicate question removal
 """
 
 import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
@@ -713,3 +715,161 @@ async def clear_questions(
         "deleted_topics": deleted_topics,
         "deleted_subjects": deleted_subjects
     }
+
+
+@router.delete("/questions/{question_id}")
+async def delete_single_question(
+    question_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Delete a single question by ID.
+    
+    Used for removing duplicate questions.
+    """
+    result = await db.execute(
+        select(Question).where(Question.id == question_id)
+    )
+    question = result.scalar_one_or_none()
+    
+    if not question:
+        raise HTTPException(status_code=404, detail=f"Question {question_id} not found")
+    
+    await db.delete(question)
+    await db.commit()
+    
+    return {
+        "status": "deleted",
+        "question_id": question_id
+    }
+
+
+@router.post("/duplicates/remove")
+async def remove_duplicate_questions(
+    dry_run: bool = True,
+    similarity_threshold: float = 0.85,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Find and remove duplicate questions across all topics.
+    
+    For NEET PG exam, most questions should be in only ONE topic.
+    This endpoint identifies duplicates and removes them.
+    
+    Args:
+        dry_run: If True, only report duplicates without deleting (default: True)
+        similarity_threshold: Threshold for fuzzy matching (0.0 to 1.0, default: 0.85)
+    
+    Returns:
+        Report of duplicates found and optionally removed
+    """
+    import hashlib
+    from difflib import SequenceMatcher
+    from collections import defaultdict
+    
+    def normalize_text(text: str) -> str:
+        """Normalize question text for comparison."""
+        if not text:
+            return ""
+        text = text.lower().strip()
+        text = re.sub(r'^(q(?:uestion)?[\s.]*)?\d+[\s.:)]*', '', text)
+        text = ' '.join(text.split())
+        text = re.sub(r'[,;:!?]', ' ', text)
+        return re.sub(r'\s+', ' ', text).strip()
+    
+    def get_hash(text: str) -> str:
+        """Generate hash for quick comparison."""
+        return hashlib.md5(normalize_text(text).encode()).hexdigest()
+    
+    def calc_similarity(text1: str, text2: str) -> float:
+        """Calculate similarity between two texts."""
+        n1, n2 = normalize_text(text1), normalize_text(text2)
+        if not n1 or not n2:
+            return 0.0
+        if n1 == n2:
+            return 1.0
+        return SequenceMatcher(None, n1, n2).ratio()
+    
+    # Fetch all questions
+    result = await db.execute(
+        select(Question).where(Question.is_active == True)
+    )
+    questions = result.scalars().all()
+    
+    logger.info(f"Analyzing {len(questions)} questions for duplicates...")
+    
+    # Group by hash
+    hash_groups = defaultdict(list)
+    for q in questions:
+        if len(q.question_text or "") < 20:
+            continue
+        h = get_hash(q.question_text)
+        hash_groups[h].append(q)
+    
+    # Find exact duplicates
+    exact_dups = {k: v for k, v in hash_groups.items() if len(v) > 1}
+    
+    # Find fuzzy duplicates
+    unique_qs = [v[0] for k, v in hash_groups.items() if len(v) == 1]
+    fuzzy_dups = defaultdict(list)
+    
+    for i, q1 in enumerate(unique_qs):
+        for q2 in unique_qs[i+1:]:
+            if q1.topic_id == q2.topic_id:
+                continue
+            sim = calc_similarity(q1.question_text, q2.question_text)
+            if sim >= similarity_threshold:
+                key = f"fuzzy_{min(q1.id, q2.id)}"
+                if key not in fuzzy_dups:
+                    fuzzy_dups[key] = [q1, q2]
+                elif q2 not in fuzzy_dups[key]:
+                    fuzzy_dups[key].append(q2)
+    
+    # Combine duplicates
+    all_dups = {}
+    all_dups.update(exact_dups)
+    all_dups.update(fuzzy_dups)
+    
+    # Select questions to keep/remove
+    def score_question(q):
+        has_exp = 1 if q.explanation else 0
+        is_val = 1 if q.is_validated else 0
+        rating = q.avg_rating or 0
+        return (has_exp, is_val, rating, -q.id)
+    
+    report = {
+        "total_questions": len(questions),
+        "duplicate_groups": len(all_dups),
+        "questions_to_remove": 0,
+        "duplicates": []
+    }
+    
+    deleted_count = 0
+    
+    for dhash, group in all_dups.items():
+        sorted_group = sorted(group, key=score_question, reverse=True)
+        keep = sorted_group[0]
+        remove = sorted_group[1:]
+        
+        dup_info = {
+            "kept_id": keep.id,
+            "kept_topic_id": keep.topic_id,
+            "removed_ids": [q.id for q in remove],
+            "removed_topic_ids": [q.topic_id for q in remove],
+            "preview": keep.question_text[:100] + "..."
+        }
+        report["duplicates"].append(dup_info)
+        report["questions_to_remove"] += len(remove)
+        
+        if not dry_run:
+            for q in remove:
+                await db.delete(q)
+                deleted_count += 1
+    
+    if not dry_run:
+        await db.commit()
+        report["deleted"] = deleted_count
+    
+    report["dry_run"] = dry_run
+    
+    return report
