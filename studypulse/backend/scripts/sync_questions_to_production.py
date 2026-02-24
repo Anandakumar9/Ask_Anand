@@ -113,12 +113,14 @@ async def import_questions_batch(
             f"{PRODUCTION_API_URL}/api/v1/questions/import/bulk",
             json=payload
         ) as response:
-            if response.status in [200, 201]:
-                result = await response.json()
+            result = await response.json()
+            if response.status in [200, 201] and result.get("success"):
                 return result.get("imported_count", len(questions)), 0
             else:
-                text = await response.text()
-                print(f"  [ERROR] Import failed: {response.status} - {text[:200]}")
+                errors = result.get("errors", [])
+                print(f"  [ERROR] Import failed: {response.status}")
+                for err in errors[:3]:  # Show first 3 errors
+                    print(f"         {err[:150]}")
                 return 0, len(questions)
     except Exception as e:
         print(f"  [ERROR] Exception during import: {e}")

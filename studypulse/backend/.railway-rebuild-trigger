@@ -2,3 +2,4 @@ RAILWAY REBUILD TRIGGER - 2026-02-16T17:30:00Z
 This file forces Railway to rebuild from scratch.
 Commit hash: 0af55af
 Fix: database.py uses getattr() for all DB_* settings
+  
